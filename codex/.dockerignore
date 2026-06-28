@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+
+.codex
+.gemini
+**/.codex
+**/.gemini
+traces-otlp-*.json
+**/traces-otlp-*.json
+.DS_Store
+README.md
+*.log
+.cache
+tmp

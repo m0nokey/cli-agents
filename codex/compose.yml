@@ -1,0 +1,29 @@
+services:
+  codex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${CODEX_IMAGE_NAME:-local/codex-rust:latest}
+    stdin_open: true
+    tty: true
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: "none"
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    environment:
+      HOME: /home/codex
+      TERM: xterm-256color
+      COLORTERM: truecolor
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    volumes:
+      - ./:/workspace
+      - ./.codex:/home/codex/.codex
+    working_dir: /workspace
