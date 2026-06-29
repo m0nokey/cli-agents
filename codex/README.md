@@ -2,7 +2,7 @@
 
 OpenAI Codex CLI in an Alpine Docker container.
 
-Codex runs inside the container, while this directory is mounted as
+Codex runs inside the container. By default, only `./workspace` is mounted as
 `/workspace`.
 
 ## Start
@@ -21,6 +21,15 @@ On first run Codex asks how to sign in:
 
 Choose ChatGPT if your plan includes Codex, Device Code for login from another
 device, or API key for usage-based billing.
+
+Working files go here:
+
+```text
+./workspace/
+```
+
+`Dockerfile`, `compose.yml`, `codex.sh`, and `.codex` stay outside the mounted
+workspace, so Codex does not see or edit the runner files by default.
 
 Useful commands:
 
@@ -62,5 +71,5 @@ CODEX_VERSION=0.70.0 ./codex.sh --help
 - Docker logs disabled
 - OTEL exporters disabled
 
-Codex can still edit files in this directory because `./` is mounted as
-`/workspace`.
+Codex can still edit files inside `./workspace`, because that directory is
+mounted as `/workspace`.

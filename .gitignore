@@ -19,3 +19,5 @@ traces-otlp-*.json
 *.log
 .cache/
 tmp/
+codex/workspace/
+gemini/workspace/

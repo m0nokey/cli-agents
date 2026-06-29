@@ -1,7 +1,7 @@
 services:
   codex:
     build:
-      context: .
+      context: ${CODEX_RUNNER_DIR}
       dockerfile: Dockerfile
     image: ${CODEX_IMAGE_NAME:-local/codex-rust:latest}
     stdin_open: true
@@ -24,6 +24,6 @@ services:
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
     volumes:
-      - ./:/workspace
-      - ./.codex:/home/codex/.codex
+      - ${CODEX_WORKSPACE_DIR}:/workspace
+      - ${CODEX_STATE_DIR}:/home/codex/.codex
     working_dir: /workspace

@@ -2,20 +2,25 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 CODEX_IMAGE_NAME="${CODEX_IMAGE_NAME:-local/codex-rust:latest}"
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 CODEX_GITHUB_REPO="${CODEX_GITHUB_REPO:-openai/codex}"
-CODEX_WORKSPACE_DIR="${CODEX_WORKSPACE_DIR:-$PWD}"
+CODEX_RUNNER_DIR="${CODEX_RUNNER_DIR:-$SCRIPT_DIR}"
+CODEX_WORKSPACE_DIR="${CODEX_WORKSPACE_DIR:-${CODEX_RUNNER_DIR}/workspace}"
 PROJECT_CODEX_DIR_NAME="${PROJECT_CODEX_DIR_NAME:-.codex}"
-PROJECT_CODEX_DIR="${CODEX_WORKSPACE_DIR}/${PROJECT_CODEX_DIR_NAME}"
+PROJECT_CODEX_DIR="${CODEX_STATE_DIR:-${CODEX_RUNNER_DIR}/${PROJECT_CODEX_DIR_NAME}}"
 PROJECT_CONFIG_PATH="${PROJECT_CODEX_DIR}/config.toml"
 ROOT_CONFIG_FALLBACK="${CODEX_WORKSPACE_DIR}/config.toml"
-DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_WORKSPACE_DIR}/Dockerfile}"
-COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${CODEX_WORKSPACE_DIR}/compose.yml}"
+DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_RUNNER_DIR}/Dockerfile}"
+COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${CODEX_RUNNER_DIR}/compose.yml}"
 COMPOSE_SERVICE_NAME="${COMPOSE_SERVICE_NAME:-codex}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 export CODEX_IMAGE_NAME
+export CODEX_RUNNER_DIR
+export CODEX_WORKSPACE_DIR
+export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
 
 MODE="auto"
 RESUME_VALUE=""
@@ -114,7 +119,8 @@ show_help() {
     printf '    %s- No arguments start a new Codex session when saved auth exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- If saved auth does not exist, auto mode starts device authorization first.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Uses docker compose instead of docker run.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
-    printf '    %s- Uses a project-local .codex directory inside the workspace.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- Mounts ./workspace as /workspace by default.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- Keeps Docker files and .codex state outside /workspace.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Creates .codex automatically if it does not exist.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Moves ./config.toml to ./.codex/config.toml when available.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Writes a default ./.codex/config.toml when no config file exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
@@ -320,15 +326,15 @@ ensure_required_files() {
 }
 
 ensure_project_layout() {
-    mkdir -p "$PROJECT_CODEX_DIR"
+    mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR"
 
     if [[ ! -f "$PROJECT_CONFIG_PATH" && -f "$ROOT_CONFIG_FALLBACK" ]]; then
-        log::info "Moving project config into .codex/config.toml"
+        log::info "Moving project config into Codex state config.toml"
         mv "$ROOT_CONFIG_FALLBACK" "$PROJECT_CONFIG_PATH"
     fi
 
     if [[ ! -f "$PROJECT_CONFIG_PATH" ]]; then
-        log::info "Writing default project config: $PROJECT_CONFIG_PATH"
+        log::info "Writing default Codex config: $PROJECT_CONFIG_PATH"
         default_config_contents > "$PROJECT_CONFIG_PATH"
     fi
 }

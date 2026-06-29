@@ -12,7 +12,8 @@ compromised package can damage files on the host.
 
 This project reduces the blast radius:
 
-- only the current project directory is mounted;
+- only the per-agent `workspace/` directory is mounted;
+- Dockerfile, compose.yml, and wrapper scripts stay outside `/workspace`;
 - auth/state is stored locally in `.codex` or `.gemini`;
 - containers run as non-root users;
 - Linux capabilities are dropped;
@@ -21,7 +22,7 @@ This project reduces the blast radius:
 - agent packages are installed inside images, not on the host.
 
 This is not a perfect sandbox. The agent can still change files inside the
-mounted workspace.
+mounted `workspace/` directory.
 
 ## Tools
 
@@ -57,6 +58,15 @@ On first run Codex asks how to sign in:
 Choose ChatGPT if your plan includes Codex, Device Code for login from another
 device, or API key for usage-based billing.
 
+
+By default, Codex can edit only files inside:
+
+```text
+codex/workspace/
+```
+
+The runner files stay outside that mount.
+
 Useful commands:
 
 ```bash
@@ -86,6 +96,14 @@ Choose:
 
 Do not trust the parent folder unless you intentionally want a broader trust
 scope.
+
+By default, Gemini can edit only files inside:
+
+```text
+gemini/workspace/
+```
+
+The runner files stay outside that mount.
 
 ## Security Defaults
 

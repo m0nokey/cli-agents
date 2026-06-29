@@ -2,7 +2,7 @@
 
 Google Gemini CLI in an Alpine Docker container.
 
-Gemini runs inside the container, while this directory is mounted as
+Gemini runs inside the container. By default, only `./workspace` is mounted as
 `/workspace`.
 
 ## Start
@@ -22,6 +22,15 @@ If Gemini asks whether you trust the folder, choose:
 
 Do not trust the parent folder unless you intentionally want a broader trust
 scope.
+
+Working files go here:
+
+```text
+./workspace/
+```
+
+`Dockerfile`, `compose.yml`, `gemini.sh`, and `.gemini` stay outside the mounted
+workspace, so Gemini does not see or edit the runner files by default.
 
 Useful commands:
 
@@ -63,5 +72,5 @@ GEMINI_VERSION=0.49.0 ./gemini.sh --help
 - Docker logs disabled
 - OTEL exporters disabled
 
-Gemini can still edit files in this directory because `./` is mounted as
-`/workspace`.
+Gemini can still edit files inside `./workspace`, because that directory is
+mounted as `/workspace`.

@@ -1,7 +1,7 @@
 services:
   gemini:
     build:
-      context: .
+      context: ${GEMINI_RUNNER_DIR}
       dockerfile: Dockerfile
     image: ${GEMINI_IMAGE_NAME:-local/gemini-cli:latest}
     stdin_open: true
@@ -25,6 +25,6 @@ services:
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
     volumes:
-      - ./:/workspace
-      - ./.gemini:/home/gemini/.gemini
+      - ${GEMINI_WORKSPACE_DIR}:/workspace
+      - ${GEMINI_STATE_DIR}:/home/gemini/.gemini
     working_dir: /workspace
