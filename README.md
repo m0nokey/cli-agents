@@ -82,6 +82,12 @@ cd gemini
 ./gemini.sh
 ```
 
+Pin a specific model when needed:
+
+```bash
+GEMINI_MODEL=gemini-3.1-flash-lite ./gemini.sh
+```
+
 On first run Gemini starts the Google login flow. If a browser does not open automatically, copy the printed URL into your host browser and finish auth there.
 
 The container sets `GEMINI_FORCE_FILE_STORAGE=true`, so OAuth tokens are written to `.gemini/gemini-credentials.json` instead of a desktop keychain.
