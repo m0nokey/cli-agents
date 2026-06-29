@@ -35,8 +35,7 @@ mounted `workspace/` directory.
 - Docker with Docker Compose plugin
 - Bash on the host
 
-Containers are Alpine-based and use `/bin/sh`; Bash is not installed inside the
-images.
+Containers are Alpine-based and include Bash because agent shell tools commonly spawn `bash`.
 
 ## Quick Start
 
@@ -82,10 +81,10 @@ cd gemini
 ./gemini.sh
 ```
 
-Pin a specific model when needed:
+The default model is `gemini-3.1-flash-lite`. Override it when needed:
 
 ```bash
-GEMINI_MODEL=gemini-3.1-flash-lite ./gemini.sh
+GEMINI_MODEL=other-model ./gemini.sh
 ```
 
 On first run Gemini starts the Google login flow. If a browser does not open automatically, copy the printed URL into your host browser and finish auth there.

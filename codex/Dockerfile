@@ -15,6 +15,7 @@ ENV HOME=/home/codex \
     XDG_CACHE_HOME=/home/codex/.cache
 
 RUN apk add --no-cache \
+    bash \
     bubblewrap \
     ca-certificates \
     curl \
@@ -30,7 +31,7 @@ RUN apk add --no-cache \
     tar
 
 RUN addgroup -g 1000 -S codex \
-    && adduser -S -D -u 1000 -G codex -h /home/codex -s /bin/sh codex \
+    && adduser -S -D -u 1000 -G codex -h /home/codex -s /bin/bash codex \
     && install -d -m 0755 -o codex -g codex /workspace /home/codex/.codex /home/codex/.config /home/codex/.cache
 
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python

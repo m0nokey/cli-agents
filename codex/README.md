@@ -64,7 +64,7 @@ CODEX_VERSION=0.70.0 ./codex.sh --help
 
 - Alpine-based image
 - non-root user `codex`
-- no Bash inside the image
+- Bash is installed for shell-tool compatibility
 - no Docker socket mount
 - `cap_drop: ALL`
 - `no-new-privileges`

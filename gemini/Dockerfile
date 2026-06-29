@@ -16,6 +16,7 @@ ENV HOME=/home/gemini \
     XDG_CACHE_HOME=/home/gemini/.cache
 
 RUN apk add --no-cache \
+    bash \
     bubblewrap \
     ca-certificates \
     curl \
@@ -31,7 +32,7 @@ RUN apk add --no-cache \
     tar
 
 RUN addgroup -g 1000 -S gemini \
-    && adduser -S -D -u 1000 -G gemini -h /home/gemini -s /bin/sh gemini \
+    && adduser -S -D -u 1000 -G gemini -h /home/gemini -s /bin/bash gemini \
     && install -d -m 0755 -o gemini -g gemini /workspace /home/gemini/.gemini /home/gemini/.config /home/gemini/.cache
 
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python

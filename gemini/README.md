@@ -11,6 +11,12 @@ Gemini runs inside the container. By default, only `./workspace` is mounted as
 ./gemini.sh
 ```
 
+The default model is `gemini-3.1-flash-lite`. Override it when needed:
+
+```bash
+GEMINI_MODEL=other-model ./gemini.sh
+```
+
 On first run Gemini starts the Google login flow. If a browser does not open automatically, copy the printed URL into your host browser and finish auth there.
 
 The container sets `GEMINI_FORCE_FILE_STORAGE=true`, so OAuth tokens are written to `.gemini/gemini-credentials.json` instead of a desktop keychain.
@@ -66,7 +72,7 @@ GEMINI_VERSION=0.49.0 ./gemini.sh --help
 
 - Alpine-based image
 - non-root user `gemini`
-- no Bash inside the image
+- Bash is installed for shell-tool compatibility
 - no Docker socket mount
 - `cap_drop: ALL`
 - `no-new-privileges`
