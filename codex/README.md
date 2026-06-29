@@ -11,7 +11,16 @@ Codex runs inside the container, while this directory is mounted as
 ./codex.sh
 ```
 
-If no saved login exists, device authorization starts automatically.
+On first run Codex asks how to sign in:
+
+```text
+1. Sign in with ChatGPT
+2. Sign in with Device Code
+3. Provide your own API key
+```
+
+Choose ChatGPT if your plan includes Codex, Device Code for login from another
+device, or API key for usage-based billing.
 
 Useful commands:
 
