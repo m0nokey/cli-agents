@@ -79,18 +79,14 @@ OPENAI_API_KEY=... ./codex.sh --api
 
 ```bash
 cd gemini
-GEMINI_API_KEY=... ./gemini.sh
-```
-
-Or persist the key outside the mounted workspace:
-
-```bash
-mkdir -p .gemini
-printf 'GEMINI_API_KEY=your-key-here\n' > .gemini/.env
 ./gemini.sh
 ```
 
-Google browser/keychain login is less reliable inside Docker. If Gemini asks:
+On first run Gemini starts the Google login flow. If a browser does not open automatically, copy the printed URL into your host browser and finish auth there.
+
+The container sets `GEMINI_FORCE_FILE_STORAGE=true`, so OAuth tokens are written to `.gemini/gemini-credentials.json` instead of a desktop keychain.
+
+If Gemini asks:
 
 ```text
 Do you trust the files in this folder?

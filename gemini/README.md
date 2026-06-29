@@ -11,22 +11,9 @@ Gemini runs inside the container. By default, only `./workspace` is mounted as
 ./gemini.sh
 ```
 
-For Docker usage, API-key auth is the most reliable mode:
+On first run Gemini starts the Google login flow. If a browser does not open automatically, copy the printed URL into your host browser and finish auth there.
 
-```bash
-GEMINI_API_KEY=... ./gemini.sh
-```
-
-You can also persist it outside the mounted workspace:
-
-```bash
-mkdir -p .gemini
-printf 'GEMINI_API_KEY=your-key-here\n' > .gemini/.env
-./gemini.sh
-```
-
-Google browser login may ask for a system keychain. That is unreliable in a
-minimal Alpine container, so prefer `GEMINI_API_KEY`.
+The container sets `GEMINI_FORCE_FILE_STORAGE=true`, so OAuth tokens are written to `.gemini/gemini-credentials.json` instead of a desktop keychain.
 
 If Gemini asks whether you trust the folder, choose:
 

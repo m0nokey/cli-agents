@@ -108,32 +108,6 @@ ensure_layout() {
     mkdir -p "$GEMINI_WORKSPACE_DIR" "$PROJECT_GEMINI_DIR"
 }
 
-load_state_env() {
-    local env_file="${PROJECT_GEMINI_DIR}/.env"
-    local line key value
-
-    [[ -f "$env_file" ]] || return 0
-
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        case "$line" in
-            ''|'#'*) continue ;;
-            GEMINI_API_KEY=*|GOOGLE_API_KEY=*|GOOGLE_CLOUD_PROJECT=*|GOOGLE_CLOUD_LOCATION=*) ;;
-            *) continue ;;
-        esac
-
-        key="${line%%=*}"
-        value="${line#*=}"
-        value="${value%\"}"
-        value="${value#\"}"
-        value="${value%\'}"
-        value="${value#\'}"
-
-        if [[ -z "${!key:-}" ]]; then
-            export "${key}=${value}"
-        fi
-    done < "$env_file"
-}
-
 
 http_get() {
     local url="$1"
@@ -269,7 +243,7 @@ build_image() {
 }
 
 has_saved_auth() {
-    [[ -n "${GEMINI_API_KEY:-}" || -n "${GOOGLE_API_KEY:-}" || -s "${PROJECT_GEMINI_DIR}/tokens.json" || -s "${PROJECT_GEMINI_DIR}/oauth_creds.json" ]]
+    [[ -f "${PROJECT_GEMINI_DIR}/tokens.json" || -f "${PROJECT_GEMINI_DIR}/oauth_creds.json" || -f "${PROJECT_GEMINI_DIR}/settings.json" ]]
 }
 
 run_gemini() {
@@ -288,8 +262,7 @@ run_auto() {
     fi
 
     log_warn "No saved Gemini auth found in ${PROJECT_GEMINI_DIR}"
-    log_warn "In Docker, API-key auth is more reliable than Google browser/keychain auth"
-    log_warn "Use GEMINI_API_KEY=... ./gemini.sh or put GEMINI_API_KEY=... into ${PROJECT_GEMINI_DIR}/.env"
+    log_warn "Starting Google login first"
     run_login
 }
 
@@ -355,7 +328,6 @@ main() {
     require_file "$DOCKERFILE_PATH"
     require_file "$COMPOSE_FILE_PATH"
     ensure_layout
-    load_state_env
     build_image
 
     case "$MODE" in

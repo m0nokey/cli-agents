@@ -4,6 +4,7 @@ services:
       context: ${GEMINI_RUNNER_DIR}
       dockerfile: Dockerfile
     image: ${GEMINI_IMAGE_NAME:-local/gemini-cli:latest}
+    hostname: gemini-cli
     stdin_open: true
     tty: true
     init: true
@@ -19,8 +20,8 @@ services:
       HOME: /home/gemini
       TERM: xterm-256color
       COLORTERM: truecolor
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      # Force file-backed OAuth storage; keytar/keychain is unreliable in containers.
+      GEMINI_FORCE_FILE_STORAGE: "true"
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
       OTEL_TRACES_EXPORTER: none

@@ -21,3 +21,7 @@ traces-otlp-*.json
 tmp/
 codex/workspace/
 gemini/workspace/
+.gemini.*
+**/.gemini.*
+.codex.*
+**/.codex.*
