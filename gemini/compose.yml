@@ -19,6 +19,8 @@ services:
       HOME: /home/gemini
       TERM: xterm-256color
       COLORTERM: truecolor
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
       OTEL_TRACES_EXPORTER: none
