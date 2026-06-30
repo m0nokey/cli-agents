@@ -26,4 +26,5 @@ services:
     volumes:
       - ${CODEX_WORKSPACE_DIR}:/workspace
       - ${CODEX_STATE_DIR}:/home/codex/.codex
+      - ${CODEX_SSH_DIR}:/home/codex/.ssh:ro
     working_dir: /workspace

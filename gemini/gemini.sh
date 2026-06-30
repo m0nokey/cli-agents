@@ -14,6 +14,7 @@ GEMINI_RUNNER_DIR="${GEMINI_RUNNER_DIR:-$SCRIPT_DIR}"
 GEMINI_WORKSPACE_DIR="${GEMINI_WORKSPACE_DIR:-${GEMINI_RUNNER_DIR}/workspace}"
 PROJECT_GEMINI_DIR_NAME="${PROJECT_GEMINI_DIR_NAME:-.gemini}"
 PROJECT_GEMINI_DIR="${GEMINI_STATE_DIR:-${GEMINI_RUNNER_DIR}/${PROJECT_GEMINI_DIR_NAME}}"
+GEMINI_SSH_DIR="${GEMINI_SSH_DIR:-${GEMINI_RUNNER_DIR}/.ssh}"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${GEMINI_RUNNER_DIR}/Dockerfile}"
 GEMINI_DOCKERFILE="${GEMINI_DOCKERFILE:-Dockerfile}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${GEMINI_RUNNER_DIR}/compose.yml}"
@@ -25,6 +26,7 @@ export GEMINI_MODEL
 export GEMINI_RUNNER_DIR
 export GEMINI_WORKSPACE_DIR
 export GEMINI_STATE_DIR="$PROJECT_GEMINI_DIR"
+export GEMINI_SSH_DIR
 
 MODE="run"
 DEBUG_ENABLED=0
@@ -71,6 +73,7 @@ show_help() {
     printf '%sUsage%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '    %s./%s%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --tools%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
+    printf '    %s./%s --init-ssh-key%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --login%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --debug%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --trace%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
@@ -84,6 +87,7 @@ show_help() {
     printf '    %s- Uses normal Docker bridge networking; Google auth uses browser auth-code flow.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Rebuilds only when npm package integrity/version or Alpine base digest changes.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- --tools uses Dockerfile.tools and adds Terraform, Ansible, yc, aws, and gcloud.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- --init-ssh-key creates a per-agent deploy key in ./.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
 }
 
 docker_cmd() {
@@ -113,7 +117,7 @@ require_file() {
 }
 
 ensure_layout() {
-    mkdir -p "$GEMINI_WORKSPACE_DIR" "$PROJECT_GEMINI_DIR"
+    mkdir -p "$GEMINI_WORKSPACE_DIR" "$PROJECT_GEMINI_DIR" "$GEMINI_SSH_DIR"
 }
 
 
@@ -254,6 +258,50 @@ has_saved_auth() {
     [[ -f "${PROJECT_GEMINI_DIR}/tokens.json" || -f "${PROJECT_GEMINI_DIR}/oauth_creds.json" || -f "${PROJECT_GEMINI_DIR}/settings.json" ]]
 }
 
+init_ssh_key() {
+    local key_path="${GEMINI_SSH_DIR}/id_ed25519"
+    local public_key_path="${key_path}.pub"
+
+    if ! command -v ssh-keygen >/dev/null 2>&1; then
+        log_error "ssh-keygen is required on the host to create an agent SSH key"
+        exit 1
+    fi
+
+    mkdir -p "$GEMINI_SSH_DIR"
+    chmod 700 "$GEMINI_SSH_DIR"
+
+    if [[ ! -f "$key_path" ]]; then
+        ssh-keygen -t ed25519 -f "$key_path" -N "" -C "cli-agents-gemini" >/dev/null
+        chmod 600 "$key_path"
+        chmod 644 "$public_key_path"
+    else
+        log_warn "SSH key already exists: $key_path"
+    fi
+
+    cat > "${GEMINI_SSH_DIR}/config" <<'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+EOF
+    chmod 600 "${GEMINI_SSH_DIR}/config"
+
+    printf '\n%sAdd this public key to your GitHub/GitLab repository as a separate deploy key for Gemini.%s\n' "$COLOR_HEADER" "$COLOR_RESET"
+    printf '%sUse read-only access for clone/pull. Enable write access only if the agent must push.%s\n\n' "$COLOR_TEXT" "$COLOR_RESET"
+    cat "$public_key_path"
+    printf '\n\n%sPrivate key path:%s %s\n' "$COLOR_HEADER" "$COLOR_RESET" "$key_path"
+    printf '%sMounted read-only inside the container as /home/gemini/.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+}
+
 run_gemini() {
     log_info "Starting Gemini CLI"
     if [[ "${#GEMINI_ARGS[@]}" -gt 0 ]]; then
@@ -283,6 +331,10 @@ run_login() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --init-ssh-key)
+                MODE="init-ssh-key"
+                shift
+                ;;
             --tools)
                 USE_TOOLS=1
                 GEMINI_IMAGE_NAME="$GEMINI_TOOLS_IMAGE_NAME"
@@ -340,6 +392,11 @@ main() {
     parse_args "$@"
     trap 'on_error $? $LINENO' ERR
     trap 'exit 130' INT
+
+    if [[ "$MODE" == "init-ssh-key" ]]; then
+        init_ssh_key
+        exit 0
+    fi
 
     require_file "$DOCKERFILE_PATH"
     require_file "$COMPOSE_FILE_PATH"

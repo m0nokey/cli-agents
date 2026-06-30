@@ -13,6 +13,7 @@ CODEX_RUNNER_DIR="${CODEX_RUNNER_DIR:-$SCRIPT_DIR}"
 CODEX_WORKSPACE_DIR="${CODEX_WORKSPACE_DIR:-${CODEX_RUNNER_DIR}/workspace}"
 PROJECT_CODEX_DIR_NAME="${PROJECT_CODEX_DIR_NAME:-.codex}"
 PROJECT_CODEX_DIR="${CODEX_STATE_DIR:-${CODEX_RUNNER_DIR}/${PROJECT_CODEX_DIR_NAME}}"
+CODEX_SSH_DIR="${CODEX_SSH_DIR:-${CODEX_RUNNER_DIR}/.ssh}"
 PROJECT_CONFIG_PATH="${PROJECT_CODEX_DIR}/config.toml"
 ROOT_CONFIG_FALLBACK="${CODEX_WORKSPACE_DIR}/config.toml"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_RUNNER_DIR}/Dockerfile}"
@@ -25,6 +26,7 @@ export CODEX_DOCKERFILE
 export CODEX_RUNNER_DIR
 export CODEX_WORKSPACE_DIR
 export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
+export CODEX_SSH_DIR
 
 MODE="auto"
 RESUME_VALUE=""
@@ -114,6 +116,7 @@ show_help() {
     printf '%sUsage%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '    %s./%s%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --tools%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
+    printf '    %s./%s --init-ssh-key%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --device-auth%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --api%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --resume <session-id|last>%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
@@ -131,6 +134,7 @@ show_help() {
     printf '    %s- Writes a default ./.codex/config.toml when no config file exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Hides docker compose build output unless --debug or --trace is enabled.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- --tools uses Dockerfile.tools and adds Terraform, Ansible, yc, aws, and gcloud.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- --init-ssh-key creates a per-agent deploy key in ./.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '\n'
 
     printf '%sModes%s\n' "$COLOR_HEADER" "$COLOR_RESET"
@@ -332,7 +336,7 @@ ensure_required_files() {
 }
 
 ensure_project_layout() {
-    mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR"
+    mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR" "$CODEX_SSH_DIR"
 
     if [[ ! -f "$PROJECT_CONFIG_PATH" && -f "$ROOT_CONFIG_FALLBACK" ]]; then
         log::info "Moving project config into Codex state config.toml"
@@ -387,6 +391,50 @@ build_image() {
     fi
 }
 
+init_ssh_key() {
+    local key_path="${CODEX_SSH_DIR}/id_ed25519"
+    local public_key_path="${key_path}.pub"
+
+    if ! command -v ssh-keygen >/dev/null 2>&1; then
+        log::error "ssh-keygen is required on the host to create an agent SSH key"
+        exit 1
+    fi
+
+    mkdir -p "$CODEX_SSH_DIR"
+    chmod 700 "$CODEX_SSH_DIR"
+
+    if [[ ! -f "$key_path" ]]; then
+        ssh-keygen -t ed25519 -f "$key_path" -N "" -C "cli-agents-codex" >/dev/null
+        chmod 600 "$key_path"
+        chmod 644 "$public_key_path"
+    else
+        log::warn "SSH key already exists: $key_path"
+    fi
+
+    cat > "${CODEX_SSH_DIR}/config" <<'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+EOF
+    chmod 600 "${CODEX_SSH_DIR}/config"
+
+    printf '\n%sAdd this public key to your GitHub/GitLab repository as a separate deploy key for Codex.%s\n' "$COLOR_HEADER" "$COLOR_RESET"
+    printf '%sUse read-only access for clone/pull. Enable write access only if the agent must push.%s\n\n' "$COLOR_TEXT" "$COLOR_RESET"
+    cat "$public_key_path"
+    printf '\n\n%sPrivate key path:%s %s\n' "$COLOR_HEADER" "$COLOR_RESET" "$key_path"
+    printf '%sMounted read-only inside the container as /home/codex/.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+}
+
 run_new_session() {
     log::info "Found saved auth, starting new Codex session"
     compose_cmd run --rm "$COMPOSE_SERVICE_NAME" --no-alt-screen
@@ -432,6 +480,10 @@ run_auto_mode() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --init-ssh-key)
+                MODE="init-ssh-key"
+                shift
+                ;;
             --tools)
                 USE_TOOLS=1
                 CODEX_IMAGE_NAME="$CODEX_TOOLS_IMAGE_NAME"
@@ -503,6 +555,11 @@ main() {
 
     if [[ "$TRACE_ENABLED" -eq 1 ]]; then
         set -x
+    fi
+
+    if [[ "$MODE" == "init-ssh-key" ]]; then
+        init_ssh_key
+        exit 0
     fi
 
     ensure_required_files

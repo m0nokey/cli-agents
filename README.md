@@ -136,6 +136,26 @@ gemini/workspace/
 
 The runner files stay outside that mount.
 
+## Per-Agent SSH Keys
+
+Do not mount your personal `~/.ssh` directory into an agent container. Create a separate key for each agent and add only the public key to the repository as a deploy key:
+
+```bash
+cd codex
+./codex.sh --init-ssh-key
+
+cd ../gemini
+./gemini.sh --init-ssh-key
+```
+
+The command prints the public key. Add it in GitHub/GitLab repository settings as a deploy key:
+
+- read-only for clone/pull;
+- write access only when the agent must push;
+- separate key per agent/project when possible.
+
+Private keys stay in `codex/.ssh/` or `gemini/.ssh/`, are ignored by git, and are mounted read-only into the container.
+
 ## Security Defaults
 
 - `alpine:3.23`

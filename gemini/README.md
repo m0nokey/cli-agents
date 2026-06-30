@@ -64,6 +64,24 @@ Keep Terraform and Ansible projects inside:
 
 The tools image still does not mount the Docker socket or host directories outside `./workspace`.
 
+## SSH Deploy Key
+
+Create a separate SSH key for Gemini instead of mounting your personal `~/.ssh`:
+
+```bash
+./gemini.sh --init-ssh-key
+```
+
+The command prints a public key. Add it to the target GitHub/GitLab repository as a deploy key. Use read-only access for clone/pull, and enable write access only if Gemini must push.
+
+The private key is stored in:
+
+```text
+./.ssh/id_ed25519
+```
+
+It is ignored by git and mounted read-only into the container as `/home/gemini/.ssh`.
+
 ## State
 
 Gemini state is stored here:

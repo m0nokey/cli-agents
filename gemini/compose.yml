@@ -31,4 +31,5 @@ services:
     volumes:
       - ${GEMINI_WORKSPACE_DIR}:/workspace
       - ${GEMINI_STATE_DIR}:/home/gemini/.gemini
+      - ${GEMINI_SSH_DIR}:/home/gemini/.ssh:ro
     working_dir: /workspace

@@ -25,3 +25,5 @@ gemini/workspace/
 **/.gemini.*
 .codex.*
 **/.codex.*
+codex/.ssh/
+gemini/.ssh/
