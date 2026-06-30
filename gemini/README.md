@@ -42,10 +42,27 @@ workspace, so Gemini does not see or edit the runner files by default.
 Useful commands:
 
 ```bash
+./gemini.sh --tools
 ./gemini.sh --login
 ./gemini.sh --debug
 ./gemini.sh -p "Explain this repository"
 ```
+
+## Tools Mode
+
+```bash
+./gemini.sh --tools
+```
+
+This builds and runs `Dockerfile.tools` as `local/gemini-cli-tools:latest`. It adds Terraform, Ansible, yc, aws, gcloud, yq, jq, SSH, and rsync to the Gemini container.
+
+Keep Terraform and Ansible projects inside:
+
+```text
+./workspace/
+```
+
+The tools image still does not mount the Docker socket or host directories outside `./workspace`.
 
 ## State
 

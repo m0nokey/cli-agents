@@ -2,7 +2,7 @@ services:
   gemini:
     build:
       context: ${GEMINI_RUNNER_DIR}
-      dockerfile: Dockerfile
+      dockerfile: ${GEMINI_DOCKERFILE:-Dockerfile}
     image: ${GEMINI_IMAGE_NAME:-local/gemini-cli:latest}
     hostname: gemini-cli
     stdin_open: true

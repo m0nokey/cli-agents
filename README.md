@@ -30,6 +30,26 @@ mounted `workspace/` directory.
 - `gemini/` - Google Gemini CLI
 - `claude/` - planned
 
+## DevOps Tools Mode
+
+Each agent has an optional tools image:
+
+```bash
+./codex.sh --tools
+./gemini.sh --tools
+```
+
+The tools image keeps the same isolated `workspace/` mount, but adds common DevOps CLIs:
+
+- Terraform from the latest HashiCorp release at build time
+- Yandex Cloud CLI from the latest stable release at build time
+- Google Cloud CLI from the latest rapid release at build time
+- AWS CLI v2 from Alpine packages
+- Ansible from Alpine packages
+- yq, jq, git, curl, SSH, rsync, and basic shell utilities
+
+Put Terraform, Ansible, and cloud projects inside the agent `workspace/` directory. The agent does not see files outside that mount by default.
+
 ## Requirements
 
 - Docker with Docker Compose plugin
@@ -69,6 +89,7 @@ The runner files stay outside that mount.
 Useful commands:
 
 ```bash
+./codex.sh --tools
 ./codex.sh --device-auth
 OPENAI_API_KEY=... ./codex.sh --api
 ./codex.sh --resume last
@@ -79,6 +100,7 @@ OPENAI_API_KEY=... ./codex.sh --api
 ```bash
 cd gemini
 ./gemini.sh
+./gemini.sh --tools
 ```
 
 The default model is `gemini-3.1-flash-lite`. Override it when needed:

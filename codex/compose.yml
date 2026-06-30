@@ -2,7 +2,7 @@ services:
   codex:
     build:
       context: ${CODEX_RUNNER_DIR}
-      dockerfile: Dockerfile
+      dockerfile: ${CODEX_DOCKERFILE:-Dockerfile}
     image: ${CODEX_IMAGE_NAME:-local/codex-rust:latest}
     stdin_open: true
     tty: true

@@ -5,6 +5,8 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 GEMINI_IMAGE_NAME="${GEMINI_IMAGE_NAME:-local/gemini-cli:latest}"
+GEMINI_TOOLS_IMAGE_NAME="${GEMINI_TOOLS_IMAGE_NAME:-local/gemini-cli-tools:latest}"
+USE_TOOLS=0
 GEMINI_PACKAGE_NAME="${GEMINI_PACKAGE_NAME:-@google/gemini-cli}"
 GEMINI_VERSION="${GEMINI_VERSION:-latest}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.1-flash-lite}"
@@ -13,10 +15,12 @@ GEMINI_WORKSPACE_DIR="${GEMINI_WORKSPACE_DIR:-${GEMINI_RUNNER_DIR}/workspace}"
 PROJECT_GEMINI_DIR_NAME="${PROJECT_GEMINI_DIR_NAME:-.gemini}"
 PROJECT_GEMINI_DIR="${GEMINI_STATE_DIR:-${GEMINI_RUNNER_DIR}/${PROJECT_GEMINI_DIR_NAME}}"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${GEMINI_RUNNER_DIR}/Dockerfile}"
+GEMINI_DOCKERFILE="${GEMINI_DOCKERFILE:-Dockerfile}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${GEMINI_RUNNER_DIR}/compose.yml}"
 COMPOSE_SERVICE_NAME="${COMPOSE_SERVICE_NAME:-gemini}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 export GEMINI_IMAGE_NAME
+export GEMINI_DOCKERFILE
 export GEMINI_MODEL
 export GEMINI_RUNNER_DIR
 export GEMINI_WORKSPACE_DIR
@@ -66,6 +70,7 @@ log_debug() {
 show_help() {
     printf '%sUsage%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '    %s./%s%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
+    printf '    %s./%s --tools%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --login%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --debug%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --trace%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
@@ -78,6 +83,7 @@ show_help() {
     printf '    %s- Keeps Docker files and .gemini state outside /workspace.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Uses normal Docker bridge networking; Google auth uses browser auth-code flow.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Rebuilds only when npm package integrity/version or Alpine base digest changes.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- --tools uses Dockerfile.tools and adds Terraform, Ansible, yc, aws, and gcloud.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
 }
 
 docker_cmd() {
@@ -277,6 +283,14 @@ run_login() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --tools)
+                USE_TOOLS=1
+                GEMINI_IMAGE_NAME="$GEMINI_TOOLS_IMAGE_NAME"
+                GEMINI_DOCKERFILE="Dockerfile.tools"
+                DOCKERFILE_PATH="${GEMINI_RUNNER_DIR}/${GEMINI_DOCKERFILE}"
+                export GEMINI_IMAGE_NAME GEMINI_DOCKERFILE
+                shift
+                ;;
             --login|--auth)
                 MODE="login"
                 shift

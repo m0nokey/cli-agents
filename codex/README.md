@@ -34,10 +34,27 @@ workspace, so Codex does not see or edit the runner files by default.
 Useful commands:
 
 ```bash
+./codex.sh --tools
 ./codex.sh --device-auth
 OPENAI_API_KEY=... ./codex.sh --api
 ./codex.sh --resume last
 ```
+
+## Tools Mode
+
+```bash
+./codex.sh --tools
+```
+
+This builds and runs `Dockerfile.tools` as `local/codex-rust-tools:latest`. It adds Terraform, Ansible, yc, aws, gcloud, yq, jq, SSH, and rsync to the Codex container.
+
+Keep Terraform and Ansible projects inside:
+
+```text
+./workspace/
+```
+
+The tools image still does not mount the Docker socket or host directories outside `./workspace`.
 
 ## State
 

@@ -5,6 +5,8 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 CODEX_IMAGE_NAME="${CODEX_IMAGE_NAME:-local/codex-rust:latest}"
+CODEX_TOOLS_IMAGE_NAME="${CODEX_TOOLS_IMAGE_NAME:-local/codex-rust-tools:latest}"
+USE_TOOLS=0
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 CODEX_GITHUB_REPO="${CODEX_GITHUB_REPO:-openai/codex}"
 CODEX_RUNNER_DIR="${CODEX_RUNNER_DIR:-$SCRIPT_DIR}"
@@ -14,10 +16,12 @@ PROJECT_CODEX_DIR="${CODEX_STATE_DIR:-${CODEX_RUNNER_DIR}/${PROJECT_CODEX_DIR_NA
 PROJECT_CONFIG_PATH="${PROJECT_CODEX_DIR}/config.toml"
 ROOT_CONFIG_FALLBACK="${CODEX_WORKSPACE_DIR}/config.toml"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_RUNNER_DIR}/Dockerfile}"
+CODEX_DOCKERFILE="${CODEX_DOCKERFILE:-Dockerfile}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${CODEX_RUNNER_DIR}/compose.yml}"
 COMPOSE_SERVICE_NAME="${COMPOSE_SERVICE_NAME:-codex}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 export CODEX_IMAGE_NAME
+export CODEX_DOCKERFILE
 export CODEX_RUNNER_DIR
 export CODEX_WORKSPACE_DIR
 export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
@@ -109,6 +113,7 @@ log::trace() {
 show_help() {
     printf '%sUsage%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '    %s./%s%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
+    printf '    %s./%s --tools%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --device-auth%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --api%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --resume <session-id|last>%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
@@ -125,6 +130,7 @@ show_help() {
     printf '    %s- Moves ./config.toml to ./.codex/config.toml when available.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Writes a default ./.codex/config.toml when no config file exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Hides docker compose build output unless --debug or --trace is enabled.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- --tools uses Dockerfile.tools and adds Terraform, Ansible, yc, aws, and gcloud.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '\n'
 
     printf '%sModes%s\n' "$COLOR_HEADER" "$COLOR_RESET"
@@ -426,6 +432,14 @@ run_auto_mode() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --tools)
+                USE_TOOLS=1
+                CODEX_IMAGE_NAME="$CODEX_TOOLS_IMAGE_NAME"
+                CODEX_DOCKERFILE="Dockerfile.tools"
+                DOCKERFILE_PATH="${CODEX_RUNNER_DIR}/${CODEX_DOCKERFILE}"
+                export CODEX_IMAGE_NAME CODEX_DOCKERFILE
+                shift
+                ;;
             --device-auth)
                 MODE="device-auth"
                 shift
