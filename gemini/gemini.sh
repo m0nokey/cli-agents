@@ -14,6 +14,7 @@ PROJECT_GEMINI_DIR_NAME="${PROJECT_GEMINI_DIR_NAME:-.gemini}"
 PROJECT_GEMINI_DIR="${GEMINI_STATE_DIR:-${GEMINI_RUNNER_DIR}/${PROJECT_GEMINI_DIR_NAME}}"
 GEMINI_SSH_DIR="${GEMINI_SSH_DIR:-${GEMINI_RUNNER_DIR}/.ssh}"
 GEMINI_SECRETS_DIR="${GEMINI_SECRETS_DIR:-${GEMINI_RUNNER_DIR}/.secrets}"
+GEMINI_SSH_KNOWN_HOSTS="${GEMINI_SSH_KNOWN_HOSTS:-github.com gitlab.com}"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${GEMINI_RUNNER_DIR}/Dockerfile}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${GEMINI_RUNNER_DIR}/compose.yml}"
 COMPOSE_SERVICE_NAME="${COMPOSE_SERVICE_NAME:-gemini}"
@@ -25,6 +26,7 @@ export GEMINI_WORKSPACE_DIR
 export GEMINI_STATE_DIR="$PROJECT_GEMINI_DIR"
 export GEMINI_SSH_DIR
 export GEMINI_SECRETS_DIR
+export GEMINI_SSH_KNOWN_HOSTS
 
 MODE="run"
 DEBUG_ENABLED=0
@@ -114,6 +116,35 @@ require_file() {
 
 ensure_layout() {
     mkdir -p "$GEMINI_WORKSPACE_DIR" "$PROJECT_GEMINI_DIR" "$GEMINI_SSH_DIR" "$GEMINI_SECRETS_DIR"
+    ensure_ssh_known_hosts
+}
+
+ensure_ssh_known_hosts() {
+    local known_hosts_path="${GEMINI_SSH_DIR}/known_hosts"
+    local host
+
+    [[ -n "$GEMINI_SSH_KNOWN_HOSTS" ]] || return 0
+
+    if ! command -v ssh-keyscan >/dev/null 2>&1 || ! command -v ssh-keygen >/dev/null 2>&1; then
+        log_warn "ssh-keyscan and ssh-keygen are required to update SSH known_hosts"
+        return 0
+    fi
+
+    mkdir -p "$GEMINI_SSH_DIR"
+    chmod 700 "$GEMINI_SSH_DIR"
+    touch "$known_hosts_path"
+    chmod 644 "$known_hosts_path"
+
+    for host in $GEMINI_SSH_KNOWN_HOSTS; do
+        if ssh-keygen -F "$host" -f "$known_hosts_path" >/dev/null 2>&1; then
+            continue
+        fi
+
+        log_info "Adding SSH known host: $host"
+        if ! ssh-keyscan -H "$host" >> "$known_hosts_path" 2>/dev/null; then
+            log_warn "Could not scan SSH host key for $host"
+        fi
+    done
 }
 
 
@@ -281,6 +312,7 @@ Host github.com
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
     StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts
 
 Host gitlab.com
     HostName gitlab.com
@@ -288,8 +320,10 @@ Host gitlab.com
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
     StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts
 EOF
     chmod 600 "${GEMINI_SSH_DIR}/config"
+    ensure_ssh_known_hosts
 
     printf '\n%sAdd this public key to your GitHub/GitLab repository as a separate deploy key for Gemini.%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '%sUse read-only access for clone/pull. Enable write access only if the agent must push.%s\n\n' "$COLOR_TEXT" "$COLOR_RESET"
