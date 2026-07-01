@@ -149,10 +149,7 @@ model = "gpt-5.4"
 web_search = "live"
 
 approval_policy = "on-request"
-sandbox_mode = "workspace-write"
-
-[sandbox_workspace_write]
-network_access = true
+sandbox_mode = "danger-full-access"
 EOF
 }
 
@@ -360,6 +357,18 @@ ensure_project_layout() {
     if [[ ! -f "$PROJECT_CONFIG_PATH" ]]; then
         log::info "Writing default Codex config: $PROJECT_CONFIG_PATH"
         default_config_contents > "$PROJECT_CONFIG_PATH"
+    elif grep -q 'sandbox_mode = "workspace-write"' "$PROJECT_CONFIG_PATH"; then
+        log::info "Updating Codex config to disable the inner sandbox inside Docker"
+        python3 - "$PROJECT_CONFIG_PATH" <<'PYCONFIG'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+text = text.replace('sandbox_mode = "workspace-write"', 'sandbox_mode = "danger-full-access"')
+text = text.replace('\n[sandbox_workspace_write]\nnetwork_access = true\n', '\n')
+path.write_text(text)
+PYCONFIG
     fi
 }
 

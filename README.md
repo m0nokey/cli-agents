@@ -16,9 +16,11 @@ This project reduces the blast radius:
 - Dockerfile, compose.yml, and wrapper scripts stay outside `/workspace`;
 - auth/state is stored locally in `.codex` or `.gemini`;
 - containers run as non-root users;
+- Codex internal sandbox is disabled by default because Docker is the isolation boundary;
 - Linux capabilities are dropped;
 - Docker logs are disabled;
 - no Docker socket is mounted;
+- no bubblewrap dependency inside agent images;
 - agent packages are installed inside images, not on the host.
 
 This is not a perfect sandbox. The agent can still change files inside the
@@ -176,6 +178,7 @@ Private keys stay in `codex/.ssh/` or `gemini/.ssh/`, are ignored by git, and ar
 - OTEL exporters disabled
 - no privileged mode
 - no Docker socket mount
+- Codex uses `sandbox_mode = "danger-full-access"` inside the container to avoid a second bubblewrap sandbox
 
 ## Scan Images
 

@@ -109,6 +109,7 @@ GEMINI_VERSION=0.49.0 ./gemini.sh --help
 - Alpine-based image
 - non-root user `gemini`
 - Bash is installed for shell-tool compatibility
+- no bubblewrap dependency
 - no Docker socket mount
 - `cap_drop: ALL`
 - `no-new-privileges`

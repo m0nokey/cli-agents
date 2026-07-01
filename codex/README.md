@@ -96,12 +96,25 @@ CODEX_FORCE_BUILD=1 ./codex.sh --help
 CODEX_VERSION=0.70.0 ./codex.sh --help
 ```
 
+## Codex Sandbox
+
+The container is the sandbox boundary. The default Codex config uses:
+
+```toml
+sandbox_mode = "danger-full-access"
+approval_policy = "on-request"
+```
+
+This avoids running Codex's inner bubblewrap sandbox inside Docker while keeping Docker volume isolation.
+
 ## Isolation
 
 - Alpine-based image
 - non-root user `codex`
 - Bash is installed for shell-tool compatibility
 - no Docker socket mount
+- no bubblewrap dependency
+- default Codex config uses `sandbox_mode = "danger-full-access"` inside Docker
 - `cap_drop: ALL`
 - `no-new-privileges`
 - Docker logs disabled
