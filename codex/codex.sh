@@ -13,6 +13,7 @@ PROJECT_CODEX_DIR_NAME="${PROJECT_CODEX_DIR_NAME:-.codex}"
 PROJECT_CODEX_DIR="${CODEX_STATE_DIR:-${CODEX_RUNNER_DIR}/${PROJECT_CODEX_DIR_NAME}}"
 CODEX_SSH_DIR="${CODEX_SSH_DIR:-${CODEX_RUNNER_DIR}/.ssh}"
 CODEX_SECRETS_DIR="${CODEX_SECRETS_DIR:-${CODEX_RUNNER_DIR}/.secrets}"
+CODEX_SSH_KNOWN_HOSTS="${CODEX_SSH_KNOWN_HOSTS:-github.com gitlab.com}"
 PROJECT_CONFIG_PATH="${PROJECT_CODEX_DIR}/config.toml"
 ROOT_CONFIG_FALLBACK="${CODEX_WORKSPACE_DIR}/config.toml"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_RUNNER_DIR}/Dockerfile}"
@@ -25,6 +26,7 @@ export CODEX_WORKSPACE_DIR
 export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
 export CODEX_SSH_DIR
 export CODEX_SECRETS_DIR
+export CODEX_SSH_KNOWN_HOSTS
 
 MODE="auto"
 RESUME_VALUE=""
@@ -351,6 +353,7 @@ ensure_required_files() {
 
 ensure_project_layout() {
     mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR" "$CODEX_SSH_DIR" "$CODEX_SECRETS_DIR"
+    ensure_ssh_known_hosts
 
     if [[ ! -f "$PROJECT_CONFIG_PATH" && -f "$ROOT_CONFIG_FALLBACK" ]]; then
         log::info "Moving project config into Codex state config.toml"
@@ -361,6 +364,34 @@ ensure_project_layout() {
         log::info "Writing default Codex config: $PROJECT_CONFIG_PATH"
         default_config_contents > "$PROJECT_CONFIG_PATH"
     fi
+}
+
+ensure_ssh_known_hosts() {
+    local known_hosts_path="${CODEX_SSH_DIR}/known_hosts"
+    local host
+
+    [[ -n "$CODEX_SSH_KNOWN_HOSTS" ]] || return 0
+
+    if ! command -v ssh-keyscan >/dev/null 2>&1 || ! command -v ssh-keygen >/dev/null 2>&1; then
+        log::warn "ssh-keyscan and ssh-keygen are required to update SSH known_hosts"
+        return 0
+    fi
+
+    mkdir -p "$CODEX_SSH_DIR"
+    chmod 700 "$CODEX_SSH_DIR"
+    touch "$known_hosts_path"
+    chmod 644 "$known_hosts_path"
+
+    for host in $CODEX_SSH_KNOWN_HOSTS; do
+        if ssh-keygen -F "$host" -f "$known_hosts_path" >/dev/null 2>&1; then
+            continue
+        fi
+
+        log::info "Adding SSH known host: $host"
+        if ! ssh-keyscan -H "$host" >> "$known_hosts_path" 2>/dev/null; then
+            log::warn "Could not scan SSH host key for $host"
+        fi
+    done
 }
 
 has_saved_auth() {
@@ -436,6 +467,7 @@ Host github.com
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
     StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts
 
 Host gitlab.com
     HostName gitlab.com
@@ -443,8 +475,10 @@ Host gitlab.com
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
     StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts
 EOF
     chmod 600 "${CODEX_SSH_DIR}/config"
+    ensure_ssh_known_hosts
 
     printf '\n%sAdd this public key to your GitHub/GitLab repository as a separate deploy key for Codex.%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '%sUse read-only access for clone/pull. Enable write access only if the agent must push.%s\n\n' "$COLOR_TEXT" "$COLOR_RESET"
