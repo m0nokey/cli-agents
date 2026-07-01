@@ -4,6 +4,7 @@ ARG GEMINI_VERSION=latest
 ARG GEMINI_PACKAGE_INTEGRITY=
 ARG GEMINI_BASE_IMAGE_DIGEST=
 ARG GEMINI_DOCKERFILE_SHA256=
+ARG TARGETARCH
 
 LABEL org.opencontainers.image.title="gemini-cli" \
       org.opencontainers.image.version="${GEMINI_VERSION}" \
@@ -17,6 +18,14 @@ ENV HOME=/home/gemini \
 
 RUN apk add --no-cache \
     bash \
+    zip \
+    yq-go \
+    unzip \
+    rsync \
+    findutils \
+    coreutils \
+    bind-tools \
+    ansible \
     bubblewrap \
     ca-certificates \
     curl \
@@ -41,6 +50,19 @@ RUN npm config set fund false \
     && npm config set audit false \
     && npm install -g "@google/gemini-cli@${GEMINI_VERSION}" \
     && gemini --version
+
+
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+        amd64) TOOL_ARCH="amd64" ;; \
+        arm64) TOOL_ARCH="arm64" ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip" -o /tmp/terraform.zip; \
+    unzip -q /tmp/terraform.zip -d /tmp/terraform; \
+    install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform; \
+    rm -rf /tmp/terraform /tmp/terraform.zip
 
 WORKDIR /workspace
 USER gemini

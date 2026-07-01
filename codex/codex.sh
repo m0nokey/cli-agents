@@ -5,8 +5,6 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 CODEX_IMAGE_NAME="${CODEX_IMAGE_NAME:-local/codex-rust:latest}"
-CODEX_TOOLS_IMAGE_NAME="${CODEX_TOOLS_IMAGE_NAME:-local/codex-rust-tools:latest}"
-USE_TOOLS=0
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 CODEX_GITHUB_REPO="${CODEX_GITHUB_REPO:-openai/codex}"
 CODEX_RUNNER_DIR="${CODEX_RUNNER_DIR:-$SCRIPT_DIR}"
@@ -14,19 +12,19 @@ CODEX_WORKSPACE_DIR="${CODEX_WORKSPACE_DIR:-${CODEX_RUNNER_DIR}/workspace}"
 PROJECT_CODEX_DIR_NAME="${PROJECT_CODEX_DIR_NAME:-.codex}"
 PROJECT_CODEX_DIR="${CODEX_STATE_DIR:-${CODEX_RUNNER_DIR}/${PROJECT_CODEX_DIR_NAME}}"
 CODEX_SSH_DIR="${CODEX_SSH_DIR:-${CODEX_RUNNER_DIR}/.ssh}"
+CODEX_SECRETS_DIR="${CODEX_SECRETS_DIR:-${CODEX_RUNNER_DIR}/.secrets}"
 PROJECT_CONFIG_PATH="${PROJECT_CODEX_DIR}/config.toml"
 ROOT_CONFIG_FALLBACK="${CODEX_WORKSPACE_DIR}/config.toml"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-${CODEX_RUNNER_DIR}/Dockerfile}"
-CODEX_DOCKERFILE="${CODEX_DOCKERFILE:-Dockerfile}"
 COMPOSE_FILE_PATH="${COMPOSE_FILE_PATH:-${CODEX_RUNNER_DIR}/compose.yml}"
 COMPOSE_SERVICE_NAME="${COMPOSE_SERVICE_NAME:-codex}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 export CODEX_IMAGE_NAME
-export CODEX_DOCKERFILE
 export CODEX_RUNNER_DIR
 export CODEX_WORKSPACE_DIR
 export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
 export CODEX_SSH_DIR
+export CODEX_SECRETS_DIR
 
 MODE="auto"
 RESUME_VALUE=""
@@ -36,6 +34,7 @@ CODEX_RESOLVED_VERSION=""
 CODEX_RESOLVED_ASSET_DIGEST=""
 CODEX_BASE_IMAGE_REF=""
 CODEX_RESOLVED_BASE_IMAGE_DIGEST=""
+CODEX_DOCKERFILE_SHA256=""
 
 theme::init() {
     if [[ -t 1 ]]; then
@@ -115,7 +114,6 @@ log::trace() {
 show_help() {
     printf '%sUsage%s\n' "$COLOR_HEADER" "$COLOR_RESET"
     printf '    %s./%s%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
-    printf '    %s./%s --tools%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --init-ssh-key%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --device-auth%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
     printf '    %s./%s --api%s\n' "$COLOR_LINE" "$SCRIPT_NAME" "$COLOR_RESET"
@@ -133,7 +131,6 @@ show_help() {
     printf '    %s- Moves ./config.toml to ./.codex/config.toml when available.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Writes a default ./.codex/config.toml when no config file exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Hides docker compose build output unless --debug or --trace is enabled.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
-    printf '    %s- --tools uses Dockerfile.tools and adds Terraform, Ansible, yc, aws, and gcloud.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- --init-ssh-key creates a per-agent deploy key in ./.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '\n'
 
@@ -189,6 +186,17 @@ github_api_get() {
 
 dockerfile_default_codex_version() {
     awk -F= '/^ARG CODEX_VERSION=/ { print $2; exit }' "$DOCKERFILE_PATH" 2>/dev/null || true
+}
+
+file_sha256() {
+    local path="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$path" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$path" | awk '{print $1}'
+    else
+        return 1
+    fi
 }
 
 dockerfile_base_image_ref() {
@@ -296,6 +304,7 @@ resolve_codex_build_metadata() {
     CODEX_RESOLVED_ASSET_DIGEST="$(resolve_codex_asset_digest "$CODEX_RESOLVED_VERSION")"
     CODEX_BASE_IMAGE_REF="$(dockerfile_base_image_ref)"
     CODEX_RESOLVED_BASE_IMAGE_DIGEST="$(resolve_base_image_digest "$CODEX_BASE_IMAGE_REF")"
+    CODEX_DOCKERFILE_SHA256="$(file_sha256 "$DOCKERFILE_PATH" 2>/dev/null || true)"
 }
 
 local_image_label() {
@@ -305,10 +314,11 @@ local_image_label() {
 }
 
 codex_image_is_current() {
-    local local_version local_codex_digest local_base_digest
+    local local_version local_codex_digest local_base_digest local_dockerfile_sha
     local_version="$(local_image_label 'org.opencontainers.image.version')"
     local_codex_digest="$(local_image_label 'org.opencontainers.image.source-digest')"
     local_base_digest="$(local_image_label 'org.opencontainers.image.base.digest')"
+    local_dockerfile_sha="$(local_image_label 'org.opencontainers.image.dockerfile-sha256')"
 
     if [[ -n "$CODEX_RESOLVED_ASSET_DIGEST" ]]; then
         [[ "$local_codex_digest" == "$CODEX_RESOLVED_ASSET_DIGEST" ]] || return 1
@@ -318,6 +328,10 @@ codex_image_is_current() {
 
     if [[ -n "$CODEX_RESOLVED_BASE_IMAGE_DIGEST" ]]; then
         [[ "$local_base_digest" == "$CODEX_RESOLVED_BASE_IMAGE_DIGEST" ]] || return 1
+    fi
+
+    if [[ -n "$CODEX_DOCKERFILE_SHA256" ]]; then
+        [[ "$local_dockerfile_sha" == "$CODEX_DOCKERFILE_SHA256" ]] || return 1
     fi
 
     return 0
@@ -336,7 +350,7 @@ ensure_required_files() {
 }
 
 ensure_project_layout() {
-    mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR" "$CODEX_SSH_DIR"
+    mkdir -p "$CODEX_WORKSPACE_DIR" "$PROJECT_CODEX_DIR" "$CODEX_SSH_DIR" "$CODEX_SECRETS_DIR"
 
     if [[ ! -f "$PROJECT_CONFIG_PATH" && -f "$ROOT_CONFIG_FALLBACK" ]]; then
         log::info "Moving project config into Codex state config.toml"
@@ -369,6 +383,8 @@ build_image() {
         log::warn "Could not resolve base image digest for ${CODEX_BASE_IMAGE_REF:-unknown}; base image changes will not trigger rebuild"
     fi
 
+    [[ -n "$CODEX_DOCKERFILE_SHA256" ]] && log::debug "Dockerfile sha256: ${CODEX_DOCKERFILE_SHA256}"
+
     if [[ "${CODEX_FORCE_BUILD:-0}" != "1" ]] && codex_image_is_current; then
         log::info "Docker image is current, skipping build: $CODEX_IMAGE_NAME"
         return
@@ -381,12 +397,14 @@ build_image() {
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
+            --build-arg "CODEX_DOCKERFILE_SHA256=${CODEX_DOCKERFILE_SHA256}" \
             "$COMPOSE_SERVICE_NAME"
     else
         compose_cmd build \
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
+            --build-arg "CODEX_DOCKERFILE_SHA256=${CODEX_DOCKERFILE_SHA256}" \
             "$COMPOSE_SERVICE_NAME" >/dev/null 2>&1
     fi
 }
@@ -482,14 +500,6 @@ parse_args() {
         case "$1" in
             --init-ssh-key)
                 MODE="init-ssh-key"
-                shift
-                ;;
-            --tools)
-                USE_TOOLS=1
-                CODEX_IMAGE_NAME="$CODEX_TOOLS_IMAGE_NAME"
-                CODEX_DOCKERFILE="Dockerfile.tools"
-                DOCKERFILE_PATH="${CODEX_RUNNER_DIR}/${CODEX_DOCKERFILE}"
-                export CODEX_IMAGE_NAME CODEX_DOCKERFILE
                 shift
                 ;;
             --device-auth)

@@ -30,25 +30,17 @@ mounted `workspace/` directory.
 - `gemini/` - Google Gemini CLI
 - `claude/` - planned
 
-## DevOps Tools Mode
+## Included Tools
 
-Each agent has an optional tools image:
+Agent images include the practical local toolchain by default:
 
-```bash
-./codex.sh --tools
-./gemini.sh --tools
-```
-
-The tools image keeps the same isolated `workspace/` mount, but adds common DevOps CLIs:
-
+- git, bash, curl, SSH, rsync
+- Python, pip, Node.js, npm
 - Terraform from the latest HashiCorp release at build time
-- Yandex Cloud CLI from the latest stable release at build time
-- Google Cloud CLI from the latest rapid release at build time
-- AWS CLI v2 from Alpine packages
 - Ansible from Alpine packages
-- yq, jq, git, curl, SSH, rsync, and basic shell utilities
+- jq and yq
 
-Put Terraform, Ansible, and cloud projects inside the agent `workspace/` directory. The agent does not see files outside that mount by default.
+Cloud provider CLIs are intentionally not included. For Terraform and Ansible, keep projects in `workspace/` and credentials outside it in `.secrets/`.
 
 ## Requirements
 
@@ -89,7 +81,6 @@ The runner files stay outside that mount.
 Useful commands:
 
 ```bash
-./codex.sh --tools
 ./codex.sh --device-auth
 OPENAI_API_KEY=... ./codex.sh --api
 ./codex.sh --resume last
@@ -100,7 +91,6 @@ OPENAI_API_KEY=... ./codex.sh --api
 ```bash
 cd gemini
 ./gemini.sh
-./gemini.sh --tools
 ```
 
 The default model is `gemini-3.1-flash-lite`. Override it when needed:
@@ -135,6 +125,26 @@ gemini/workspace/
 ```
 
 The runner files stay outside that mount.
+
+## Secrets
+
+Do not put cloud credentials, Terraform backend secrets, Ansible vault passwords, or private keys into `workspace/`. Store them in per-agent `.secrets/` directories instead:
+
+```text
+codex/.secrets/
+gemini/.secrets/
+```
+
+They are ignored by git and mounted read-only at `/run/agent-secrets`.
+
+Examples:
+
+```text
+.secrets/ansible/vault-password.txt
+.secrets/aws/credentials
+.secrets/gcp/service-account.json
+.secrets/yc/authorized_key.json
+```
 
 ## Per-Agent SSH Keys
 

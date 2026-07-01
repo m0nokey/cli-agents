@@ -2,7 +2,7 @@ services:
   gemini:
     build:
       context: ${GEMINI_RUNNER_DIR}
-      dockerfile: ${GEMINI_DOCKERFILE:-Dockerfile}
+      dockerfile: Dockerfile
     image: ${GEMINI_IMAGE_NAME:-local/gemini-cli:latest}
     hostname: gemini-cli
     stdin_open: true
@@ -32,4 +32,5 @@ services:
       - ${GEMINI_WORKSPACE_DIR}:/workspace
       - ${GEMINI_STATE_DIR}:/home/gemini/.gemini
       - ${GEMINI_SSH_DIR}:/home/gemini/.ssh:ro
+      - ${GEMINI_SECRETS_DIR}:/run/agent-secrets:ro
     working_dir: /workspace

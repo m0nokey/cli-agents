@@ -3,12 +3,14 @@ FROM alpine:3.23
 ARG CODEX_VERSION=latest
 ARG CODEX_ASSET_DIGEST=
 ARG CODEX_BASE_IMAGE_DIGEST=
+ARG CODEX_DOCKERFILE_SHA256=
 ARG TARGETARCH
 
 LABEL org.opencontainers.image.title="codex-rust" \
       org.opencontainers.image.version="${CODEX_VERSION}" \
       org.opencontainers.image.source-digest="${CODEX_ASSET_DIGEST}" \
-      org.opencontainers.image.base.digest="${CODEX_BASE_IMAGE_DIGEST}"
+      org.opencontainers.image.base.digest="${CODEX_BASE_IMAGE_DIGEST}" \
+      org.opencontainers.image.dockerfile-sha256="${CODEX_DOCKERFILE_SHA256}"
 
 ENV HOME=/home/codex \
     XDG_CONFIG_HOME=/home/codex/.config \
@@ -16,6 +18,14 @@ ENV HOME=/home/codex \
 
 RUN apk add --no-cache \
     bash \
+    zip \
+    yq-go \
+    unzip \
+    rsync \
+    findutils \
+    coreutils \
+    bind-tools \
+    ansible \
     bubblewrap \
     ca-certificates \
     curl \
@@ -54,6 +64,19 @@ RUN case "${TARGETARCH}" in \
     tar -xzf /tmp/codex.tar.gz -C /tmp && \
     install -m 0755 "/tmp/codex-${CODEX_ARCH}" /usr/local/bin/codex && \
     rm -f /tmp/codex.tar.gz "/tmp/codex-${CODEX_ARCH}"
+
+
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+        amd64) TOOL_ARCH="amd64" ;; \
+        arm64) TOOL_ARCH="arm64" ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip" -o /tmp/terraform.zip; \
+    unzip -q /tmp/terraform.zip -d /tmp/terraform; \
+    install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform; \
+    rm -rf /tmp/terraform /tmp/terraform.zip
 
 WORKDIR /workspace
 USER codex

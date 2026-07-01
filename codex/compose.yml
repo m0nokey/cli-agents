@@ -2,7 +2,7 @@ services:
   codex:
     build:
       context: ${CODEX_RUNNER_DIR}
-      dockerfile: ${CODEX_DOCKERFILE:-Dockerfile}
+      dockerfile: Dockerfile
     image: ${CODEX_IMAGE_NAME:-local/codex-rust:latest}
     stdin_open: true
     tty: true
@@ -27,4 +27,5 @@ services:
       - ${CODEX_WORKSPACE_DIR}:/workspace
       - ${CODEX_STATE_DIR}:/home/codex/.codex
       - ${CODEX_SSH_DIR}:/home/codex/.ssh:ro
+      - ${CODEX_SECRETS_DIR}:/run/agent-secrets:ro
     working_dir: /workspace
