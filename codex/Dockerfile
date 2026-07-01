@@ -26,6 +26,7 @@ RUN apk add --no-cache \
     coreutils \
     bind-tools \
     ansible \
+    bubblewrap \
     ca-certificates \
     curl \
     fd \
