@@ -36,6 +36,7 @@ RUN apk add --no-cache \
     git \
     jq \
     nodejs \
+    nmap \
     npm \
     openssh-client \
     python3 \
