@@ -10,21 +10,51 @@ npm packages, caches, and auth files directly on your laptop.
 Coding agents can run commands and edit files. A bad prompt, tool bug, or
 compromised package can damage files on the host.
 
+Installing agent CLIs directly on a laptop also spreads npm packages, caches,
+auth state, shell history, and temporary files across the user environment.
+This project keeps those runtimes disposable and per-agent.
+
 This project reduces the blast radius:
 
 - only the per-agent `workspace/` directory is mounted;
 - Dockerfile, compose.yml, and wrapper scripts stay outside `/workspace`;
 - auth/state is stored locally in `.codex` or `.gemini`;
 - containers run as non-root users;
-- Codex internal sandbox is disabled by default because Docker is the isolation boundary;
+- Codex keeps its native approval/sandbox flow inside the container;
 - Linux capabilities are dropped;
 - Docker logs are disabled;
 - no Docker socket is mounted;
-- no bubblewrap dependency inside agent images;
 - agent packages are installed inside images, not on the host.
 
 This is not a perfect sandbox. The agent can still change files inside the
 mounted `workspace/` directory.
+
+## Security Architecture
+
+Each agent has its own runner directory:
+
+```text
+agent/
+  workspace/   mounted read-write as /workspace
+  .codex/      or .gemini/ auth and local state
+  .ssh/        per-agent deploy key, mounted read-only
+  .secrets/    optional credentials, mounted read-only
+```
+
+The container boundary is intentionally narrow: non-root user, dropped Linux
+capabilities, no privileged mode, no Docker socket, no persistent Docker logs,
+and resource limits for CPU, memory, and process count. Codex additionally uses
+its native `bubblewrap` sandbox with a custom seccomp profile so write/delete
+operations still go through Codex approval.
+
+## Threat Model
+
+This protects against accidental host file damage, polluted host development
+environments, broad `~/.ssh` exposure, and runaway CPU/RAM/process usage.
+
+It does not protect against malicious code reading files that are intentionally
+mounted into the container, secrets committed into `workspace/`, or a Docker,
+kernel, or Docker Desktop escape.
 
 ## Tools
 
@@ -172,13 +202,15 @@ Private keys stay in `codex/.ssh/` or `gemini/.ssh/`, are ignored by git, and ar
 
 - `alpine:3.23`
 - non-root users
-- `no-new-privileges`
+- `no-new-privileges` where compatible
 - `cap_drop: ALL`
+- CPU, memory, and process limits
+- explicit DNS servers and empty DNS search domains
 - `logging.driver: none`
 - OTEL exporters disabled
 - no privileged mode
 - no Docker socket mount
-- Codex uses `sandbox_mode = "danger-full-access"` inside the container to avoid a second bubblewrap sandbox
+- Codex uses `bubblewrap` with a local seccomp profile for its inner sandbox
 
 ## Scan Images
 
