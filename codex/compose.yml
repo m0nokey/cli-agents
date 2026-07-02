@@ -7,6 +7,15 @@ services:
     stdin_open: true
     tty: true
     init: true
+    read_only: true
+    pids_limit: 100
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
+    dns_search: []
     security_opt:
       - seccomp=./seccomp-bwrap.json
     cap_drop:
@@ -15,6 +24,8 @@ services:
       driver: "none"
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=512m
+      - /home/codex/.cache:rw,nosuid,nodev,size=256m
+      - /home/codex/.config:rw,nosuid,nodev,size=64m
     environment:
       HOME: /home/codex
       TERM: xterm-256color
