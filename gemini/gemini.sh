@@ -333,18 +333,12 @@ EOF
 }
 
 run_gemini() {
-    local status
     log_info "Starting Gemini CLI"
-    set +e
     if [[ "${#GEMINI_ARGS[@]}" -gt 0 ]]; then
         compose_cmd run --rm "$COMPOSE_SERVICE_NAME" "${GEMINI_ARGS[@]}"
-        status=$?
     else
         compose_cmd run --rm "$COMPOSE_SERVICE_NAME"
-        status=$?
     fi
-    set -e
-    return "$status"
 }
 
 run_auto() {
@@ -359,14 +353,9 @@ run_auto() {
 }
 
 run_login() {
-    local status
     log_warn "Starting Gemini Google login"
     log_warn "If browser does not open automatically, copy the printed Google login URL into your host browser"
-    set +e
     compose_cmd run --rm "$COMPOSE_SERVICE_NAME"
-    status=$?
-    set -e
-    return "$status"
 }
 
 parse_args() {
