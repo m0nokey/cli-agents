@@ -49,12 +49,18 @@ operations still go through Codex approval.
 
 ## Threat Model
 
-This protects against accidental host file damage, polluted host development
-environments, broad `~/.ssh` exposure, and runaway CPU/RAM/process usage.
+This reduces host risk from accidental commands, malicious npm/Go/Rust
+packages, bad prompts, and tool bugs. The agent and code it runs execute inside
+a container without privileged mode, without a Docker socket, without access to
+the host home directory, and with a dedicated workspace mount.
 
-It does not protect against malicious code reading files that are intentionally
-mounted into the container, secrets committed into `workspace/`, or a Docker,
-kernel, or Docker Desktop escape.
+The isolation limits blast radius to directories intentionally mounted into the
+container: `workspace/`, agent state, read-only `.ssh`, and read-only
+`.secrets`.
+
+It does not protect against malicious code reading mounted files, secrets
+committed into `workspace/`, code abusing credentials available to the agent, or
+escape vulnerabilities in Docker, the Linux kernel, or Docker Desktop.
 
 ## Tools
 
