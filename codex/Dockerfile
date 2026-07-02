@@ -39,6 +39,7 @@ RUN apk add --no-cache \
     netcat-openbsd \
     nodejs \
     nmap \
+    nmap-scripts \
     npm \
     openssh-client \
     proxychains-ng \
