@@ -421,6 +421,8 @@ on_error() {
 }
 
 main() {
+    local status=0
+
     init_theme
     parse_args "$@"
     trap 'on_error $? $LINENO' ERR
@@ -436,18 +438,25 @@ main() {
     ensure_layout
     build_image
 
+    set +e
+    trap - ERR
+
     case "$MODE" in
         login)
             run_login
+            status=$?
             ;;
         run)
             run_auto
+            status=$?
             ;;
         *)
             log_error "Unsupported mode: $MODE"
             exit 1
             ;;
     esac
+
+    exit "$status"
 }
 
 main "$@"
