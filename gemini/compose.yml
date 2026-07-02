@@ -8,7 +8,6 @@ services:
     stdin_open: true
     tty: true
     init: true
-    read_only: true
     pids_limit: 100
     mem_limit: 1g
     memswap_limit: 1g
@@ -24,16 +23,9 @@ services:
     logging:
       driver: "none"
     tmpfs:
-      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
-      - /home/gemini/.cache:rw,nosuid,nodev,size=256m,uid=1000,gid=1000,mode=700
-      - /home/gemini/.config:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700
-      - /home/gemini/.local:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=700
-      - /home/gemini/.npm:rw,nosuid,nodev,size=256m,uid=1000,gid=1000,mode=700
+      - /tmp:rw,nosuid,nodev,size=512m
     environment:
       HOME: /home/gemini
-      TMPDIR: /tmp
-      XDG_RUNTIME_DIR: /tmp/gemini-runtime
-      npm_config_cache: /tmp/npm-cache
       TERM: xterm-256color
       COLORTERM: truecolor
       GEMINI_MODEL: ${GEMINI_MODEL:-}
