@@ -29,12 +29,15 @@ RUN apk add --no-cache \
     ca-certificates \
     curl \
     fd \
+    ffuf \
     git \
     jq \
+    netcat-openbsd \
     nodejs \
     nmap \
     npm \
     openssh-client \
+    proxychains-ng \
     python3 \
     py3-pip \
     ripgrep \
