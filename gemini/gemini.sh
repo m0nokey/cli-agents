@@ -122,6 +122,7 @@ ensure_layout() {
 ensure_ssh_known_hosts() {
     local known_hosts_path="${GEMINI_SSH_DIR}/known_hosts"
     local host
+    local scan_path
 
     [[ -n "$GEMINI_SSH_KNOWN_HOSTS" ]] || return 0
 
@@ -141,10 +142,64 @@ ensure_ssh_known_hosts() {
         fi
 
         log_info "Adding SSH known host: $host"
-        if ! ssh-keyscan -H "$host" >> "$known_hosts_path" 2>/dev/null; then
+        scan_path="$(mktemp)"
+        if ! ssh-keyscan -H "$host" > "$scan_path" 2>/dev/null; then
             log_warn "Could not scan SSH host key for $host"
+            rm -f "$scan_path"
+            continue
         fi
+
+        if ! verify_scanned_host_keys "$host" "$scan_path"; then
+            log_warn "Refusing unverified SSH host key for $host"
+            rm -f "$scan_path"
+            continue
+        fi
+
+        cat "$scan_path" >> "$known_hosts_path"
+        rm -f "$scan_path"
     done
+}
+
+known_host_fingerprints() {
+    case "$1" in
+        github.com)
+            cat <<'EOF'
+SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s
+SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM
+SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+EOF
+            ;;
+        gitlab.com)
+            cat <<'EOF'
+SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw
+SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8
+SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ
+EOF
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+verify_scanned_host_keys() {
+    local host="$1"
+    local scan_path="$2"
+    local fingerprints line fingerprint
+
+    fingerprints="$(known_host_fingerprints "$host" 2>/dev/null || true)"
+    if [[ -z "$fingerprints" ]]; then
+        log_warn "No pinned SSH host fingerprints for $host; trusting ssh-keyscan result"
+        return 0
+    fi
+
+    while IFS= read -r line; do
+        [[ -n "$line" && "${line:0:1}" != "#" ]] || continue
+        fingerprint="$(printf '%s\n' "$line" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')"
+        if [[ -z "$fingerprint" ]] || ! printf '%s\n' "$fingerprints" | grep -qxF "$fingerprint"; then
+            return 1
+        fi
+    done < "$scan_path"
 }
 
 
