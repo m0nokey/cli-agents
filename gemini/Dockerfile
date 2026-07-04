@@ -18,6 +18,7 @@ ENV HOME=/home/gemini \
 
 RUN apk add --no-cache \
     bash \
+    age \
     zip \
     yq-go \
     unzip \
@@ -31,7 +32,12 @@ RUN apk add --no-cache \
     fd \
     ffuf \
     git \
+    helm \
     jq \
+    kubectl \
+    kubectx \
+    kustomize \
+    make \
     netcat-openbsd \
     nodejs \
     nmap \
@@ -41,7 +47,9 @@ RUN apk add --no-cache \
     proxychains-ng \
     python3 \
     py3-pip \
+    crane \
     ripgrep \
+    sops \
     tar
 
 RUN addgroup -g 1000 -S gemini \
@@ -66,7 +74,12 @@ RUN set -eu; \
     curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip" -o /tmp/terraform.zip; \
     unzip -q /tmp/terraform.zip -d /tmp/terraform; \
     install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform; \
-    rm -rf /tmp/terraform /tmp/terraform.zip
+    rm -rf /tmp/terraform /tmp/terraform.zip; \
+    STERN_VERSION="$(curl -fsSL https://api.github.com/repos/stern/stern/releases/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
+    curl -fsSL "https://github.com/stern/stern/releases/download/v${STERN_VERSION}/stern_${STERN_VERSION}_linux_${TOOL_ARCH}.tar.gz" -o /tmp/stern.tar.gz; \
+    tar -xzf /tmp/stern.tar.gz -C /tmp stern; \
+    install -m 0755 /tmp/stern /usr/local/bin/stern; \
+    rm -f /tmp/stern.tar.gz /tmp/stern
 
 WORKDIR /workspace
 USER gemini

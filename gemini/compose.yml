@@ -30,6 +30,7 @@ services:
       GEMINI_FORCE_FILE_STORAGE: "true"
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
+      GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/gemini/.ssh/known_hosts -o UpdateHostKeys=no
       OTEL_TRACES_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
