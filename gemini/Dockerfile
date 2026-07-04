@@ -14,7 +14,11 @@ LABEL org.opencontainers.image.title="gemini-cli" \
 
 ENV HOME=/home/gemini \
     XDG_CONFIG_HOME=/home/gemini/.config \
-    XDG_CACHE_HOME=/home/gemini/.cache
+    XDG_CACHE_HOME=/home/gemini/.cache \
+    ANSIBLE_HOME=/home/gemini/.cache/ansible \
+    ANSIBLE_LOCAL_TEMP=/tmp/ansible-local \
+    ANSIBLE_REMOTE_TEMP=/tmp/ansible-remote \
+    ANSIBLE_RETRY_FILES_ENABLED=false
 
 RUN apk add --no-cache \
     bash \
