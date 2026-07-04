@@ -21,6 +21,7 @@ ENV HOME=/home/codex \
 
 RUN apk add --no-cache \
     bash \
+    age \
     zip \
     yq-go \
     unzip \
@@ -40,6 +41,7 @@ RUN apk add --no-cache \
     kubectl \
     kubectx \
     kustomize \
+    make \
     netcat-openbsd \
     nodejs \
     nmap \
@@ -49,7 +51,9 @@ RUN apk add --no-cache \
     proxychains-ng \
     python3 \
     py3-pip \
+    crane \
     ripgrep \
+    sops \
     tar
 
 RUN addgroup -g 1000 -S codex \

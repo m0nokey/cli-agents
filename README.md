@@ -77,6 +77,7 @@ Agent images include the practical local toolchain by default:
 - Terraform from the latest HashiCorp release at build time
 - Ansible from Alpine packages
 - Kubernetes clients: kubectl, Helm, Kustomize, kubectx/kubens, Stern
+- make, SOPS, age, and crane
 - jq and yq
 
 Cloud provider CLIs are intentionally not included. For Terraform and Ansible, keep projects in `workspace/` and credentials outside it in `.secrets/`.
