@@ -48,6 +48,7 @@ RUN apk add --no-cache \
     nmap \
     nmap-scripts \
     npm \
+    openssl \
     openssh-client \
     proxychains-ng \
     python3 \

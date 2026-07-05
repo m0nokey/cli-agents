@@ -78,6 +78,7 @@ Agent images include the practical local toolchain by default:
 - Ansible from Alpine packages
 - Kubernetes clients: kubectl, Helm, Kustomize, kubectx/kubens, Stern
 - make, SOPS, age, and crane
+- OpenSSL CLI for certificate and TLS diagnostics
 - jq and yq
 
 Cloud provider CLIs are intentionally not included. For Terraform and Ansible, keep projects in `workspace/` and credentials outside it in `.secrets/`.
