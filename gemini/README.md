@@ -49,7 +49,7 @@ Useful commands:
 
 ## Included Tools
 
-The image includes git, bash, Python/pip, Node/npm, Terraform, Ansible, jq/yq, SSH, and rsync.
+The image includes git, bash, Python/pip, Node/npm, Terraform, Ansible, Kubernetes clients, jq/yq, SSH, rsync, shfmt, ShellCheck, yamllint, ansible-lint, pre-commit, and gitleaks.
 
 Keep projects inside:
 

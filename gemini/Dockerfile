@@ -31,6 +31,7 @@ RUN apk add --no-cache \
     coreutils \
     bind-tools \
     ansible \
+    ansible-lint \
     ca-certificates \
     curl \
     fd \
@@ -49,13 +50,17 @@ RUN apk add --no-cache \
     npm \
     openssl \
     openssh-client \
+    pre-commit \
     proxychains-ng \
     python3 \
     py3-pip \
     crane \
     ripgrep \
+    shellcheck \
+    shfmt \
     sops \
-    tar
+    tar \
+    yamllint
 
 RUN addgroup -g 1000 -S gemini \
     && adduser -S -D -u 1000 -G gemini -h /home/gemini -s /bin/bash gemini \
@@ -71,8 +76,8 @@ RUN npm config set fund false \
 
 RUN set -eu; \
     case "${TARGETARCH}" in \
-        amd64) TOOL_ARCH="amd64" ;; \
-        arm64) TOOL_ARCH="arm64" ;; \
+        amd64) TOOL_ARCH="amd64"; GITLEAKS_ARCH="x64" ;; \
+        arm64) TOOL_ARCH="arm64"; GITLEAKS_ARCH="arm64" ;; \
         *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
     esac; \
     TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
@@ -84,7 +89,12 @@ RUN set -eu; \
     curl -fsSL "https://github.com/stern/stern/releases/download/v${STERN_VERSION}/stern_${STERN_VERSION}_linux_${TOOL_ARCH}.tar.gz" -o /tmp/stern.tar.gz; \
     tar -xzf /tmp/stern.tar.gz -C /tmp stern; \
     install -m 0755 /tmp/stern /usr/local/bin/stern; \
-    rm -f /tmp/stern.tar.gz /tmp/stern
+    rm -f /tmp/stern.tar.gz /tmp/stern; \
+    GITLEAKS_VERSION="$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
+    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" -o /tmp/gitleaks.tar.gz; \
+    tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks; \
+    install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks; \
+    rm -f /tmp/gitleaks.tar.gz /tmp/gitleaks
 
 WORKDIR /workspace
 USER gemini

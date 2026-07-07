@@ -79,6 +79,8 @@ Agent images include the practical local toolchain by default:
 - Kubernetes clients: kubectl, Helm, Kustomize, kubectx/kubens, Stern
 - make, SOPS, age, and crane
 - OpenSSL CLI for certificate and TLS diagnostics
+- lint and hygiene tools: shfmt, ShellCheck, yamllint, ansible-lint, pre-commit
+- gitleaks for local secret scans
 - jq and yq
 
 Cloud provider CLIs are intentionally not included. For Terraform and Ansible, keep projects in `workspace/` and credentials outside it in `.secrets/`.
