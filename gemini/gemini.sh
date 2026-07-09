@@ -34,6 +34,7 @@ TRACE_ENABLED=0
 GEMINI_RESOLVED_VERSION=""
 GEMINI_PACKAGE_INTEGRITY=""
 GEMINI_BASE_IMAGE_REF=""
+GEMINI_PINNED_BASE_IMAGE_REF=""
 GEMINI_BASE_IMAGE_DIGEST=""
 GEMINI_DOCKERFILE_SHA256=""
 GEMINI_ARGS=()
@@ -244,7 +245,17 @@ file_sha256() {
 }
 
 dockerfile_base_image_ref() {
-    awk '/^FROM[[:space:]]+/ { print $2; exit }' "$DOCKERFILE_PATH" 2>/dev/null || true
+    awk -F= '
+        /^ARG[[:space:]]+ALPINE_IMAGE=/ {
+            print $2
+            found=1
+            exit
+        }
+        /^FROM[[:space:]]+/ && !found {
+            print $2
+            exit
+        }
+    ' "$DOCKERFILE_PATH" 2>/dev/null || true
 }
 
 docker_hub_manifest_digest() {
@@ -285,6 +296,11 @@ resolve_build_metadata() {
     resolve_npm_metadata
     GEMINI_BASE_IMAGE_REF="$(dockerfile_base_image_ref)"
     GEMINI_BASE_IMAGE_DIGEST="$(resolve_base_image_digest "$GEMINI_BASE_IMAGE_REF")"
+    if [[ -n "$GEMINI_BASE_IMAGE_DIGEST" && "$GEMINI_BASE_IMAGE_REF" != *@* ]]; then
+        GEMINI_PINNED_BASE_IMAGE_REF="${GEMINI_BASE_IMAGE_REF}@${GEMINI_BASE_IMAGE_DIGEST}"
+    else
+        GEMINI_PINNED_BASE_IMAGE_REF="$GEMINI_BASE_IMAGE_REF"
+    fi
     GEMINI_DOCKERFILE_SHA256="$(file_sha256 "$DOCKERFILE_PATH" 2>/dev/null || true)"
 }
 
@@ -330,9 +346,9 @@ build_image() {
 
     log_info "Building Docker image: $GEMINI_IMAGE_NAME"
     if [[ "$DEBUG_ENABLED" -eq 1 || "$TRACE_ENABLED" -eq 1 ]]; then
-        compose_cmd build --build-arg "GEMINI_VERSION=${GEMINI_RESOLVED_VERSION}" --build-arg "GEMINI_PACKAGE_INTEGRITY=${GEMINI_PACKAGE_INTEGRITY}" --build-arg "GEMINI_BASE_IMAGE_DIGEST=${GEMINI_BASE_IMAGE_DIGEST}" --build-arg "GEMINI_DOCKERFILE_SHA256=${GEMINI_DOCKERFILE_SHA256}" "$COMPOSE_SERVICE_NAME"
+        compose_cmd build --build-arg "ALPINE_IMAGE=${GEMINI_PINNED_BASE_IMAGE_REF}" --build-arg "GEMINI_VERSION=${GEMINI_RESOLVED_VERSION}" --build-arg "GEMINI_PACKAGE_INTEGRITY=${GEMINI_PACKAGE_INTEGRITY}" --build-arg "GEMINI_BASE_IMAGE_DIGEST=${GEMINI_BASE_IMAGE_DIGEST}" --build-arg "GEMINI_DOCKERFILE_SHA256=${GEMINI_DOCKERFILE_SHA256}" "$COMPOSE_SERVICE_NAME"
     else
-        compose_cmd build --build-arg "GEMINI_VERSION=${GEMINI_RESOLVED_VERSION}" --build-arg "GEMINI_PACKAGE_INTEGRITY=${GEMINI_PACKAGE_INTEGRITY}" --build-arg "GEMINI_BASE_IMAGE_DIGEST=${GEMINI_BASE_IMAGE_DIGEST}" --build-arg "GEMINI_DOCKERFILE_SHA256=${GEMINI_DOCKERFILE_SHA256}" "$COMPOSE_SERVICE_NAME" >/dev/null 2>&1
+        compose_cmd build --build-arg "ALPINE_IMAGE=${GEMINI_PINNED_BASE_IMAGE_REF}" --build-arg "GEMINI_VERSION=${GEMINI_RESOLVED_VERSION}" --build-arg "GEMINI_PACKAGE_INTEGRITY=${GEMINI_PACKAGE_INTEGRITY}" --build-arg "GEMINI_BASE_IMAGE_DIGEST=${GEMINI_BASE_IMAGE_DIGEST}" --build-arg "GEMINI_DOCKERFILE_SHA256=${GEMINI_DOCKERFILE_SHA256}" "$COMPOSE_SERVICE_NAME" >/dev/null 2>&1
     fi
 }
 

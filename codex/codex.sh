@@ -35,6 +35,7 @@ TRACE_ENABLED=0
 CODEX_RESOLVED_VERSION=""
 CODEX_RESOLVED_ASSET_DIGEST=""
 CODEX_BASE_IMAGE_REF=""
+CODEX_PINNED_BASE_IMAGE_REF=""
 CODEX_RESOLVED_BASE_IMAGE_DIGEST=""
 CODEX_DOCKERFILE_SHA256=""
 
@@ -202,7 +203,17 @@ file_sha256() {
 }
 
 dockerfile_base_image_ref() {
-    awk '/^FROM[[:space:]]+/ { print $2; exit }' "$DOCKERFILE_PATH" 2>/dev/null || true
+    awk -F= '
+        /^ARG[[:space:]]+ALPINE_IMAGE=/ {
+            print $2
+            found=1
+            exit
+        }
+        /^FROM[[:space:]]+/ && !found {
+            print $2
+            exit
+        }
+    ' "$DOCKERFILE_PATH" 2>/dev/null || true
 }
 
 resolve_latest_codex_version() {
@@ -306,6 +317,11 @@ resolve_codex_build_metadata() {
     CODEX_RESOLVED_ASSET_DIGEST="$(resolve_codex_asset_digest "$CODEX_RESOLVED_VERSION")"
     CODEX_BASE_IMAGE_REF="$(dockerfile_base_image_ref)"
     CODEX_RESOLVED_BASE_IMAGE_DIGEST="$(resolve_base_image_digest "$CODEX_BASE_IMAGE_REF")"
+    if [[ -n "$CODEX_RESOLVED_BASE_IMAGE_DIGEST" && "$CODEX_BASE_IMAGE_REF" != *@* ]]; then
+        CODEX_PINNED_BASE_IMAGE_REF="${CODEX_BASE_IMAGE_REF}@${CODEX_RESOLVED_BASE_IMAGE_DIGEST}"
+    else
+        CODEX_PINNED_BASE_IMAGE_REF="$CODEX_BASE_IMAGE_REF"
+    fi
     CODEX_DOCKERFILE_SHA256="$(file_sha256 "$DOCKERFILE_PATH" 2>/dev/null || true)"
 }
 
@@ -480,6 +496,7 @@ build_image() {
 
     if [[ "$DEBUG_ENABLED" -eq 1 || "$TRACE_ENABLED" -eq 1 ]]; then
         compose_cmd build \
+            --build-arg "ALPINE_IMAGE=${CODEX_PINNED_BASE_IMAGE_REF}" \
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
@@ -487,6 +504,7 @@ build_image() {
             "$COMPOSE_SERVICE_NAME"
     else
         compose_cmd build \
+            --build-arg "ALPINE_IMAGE=${CODEX_PINNED_BASE_IMAGE_REF}" \
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
