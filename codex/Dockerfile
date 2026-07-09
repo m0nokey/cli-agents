@@ -1,6 +1,9 @@
 FROM alpine:3.23
 
 ARG CODEX_VERSION=latest
+ARG TERRAFORM_VERSION=latest
+ARG STERN_VERSION=latest
+ARG GITLEAKS_VERSION=latest
 ARG CODEX_ASSET_DIGEST=
 ARG CODEX_BASE_IMAGE_DIGEST=
 ARG CODEX_DOCKERFILE_SHA256=
@@ -95,18 +98,45 @@ RUN set -eu; \
         arm64) TOOL_ARCH="arm64"; GITLEAKS_ARCH="arm64" ;; \
         *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
     esac; \
-    TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
+    github_asset_field() { \
+        python3 -c 'import json,sys; data=json.load(sys.stdin); name=sys.argv[1]; field=sys.argv[2]; print(next(asset.get(field, "") for asset in data["assets"] if asset["name"] == name))' "$1" "$2"; \
+    }; \
+    if [ "${TERRAFORM_VERSION}" = "latest" ]; then \
+        TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
+    fi; \
     curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip" -o /tmp/terraform.zip; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_SHA256SUMS" -o /tmp/terraform_SHA256SUMS; \
+    grep " terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip\$" /tmp/terraform_SHA256SUMS | sed 's#  #  /tmp/#' | sha256sum -c -; \
     unzip -q /tmp/terraform.zip -d /tmp/terraform; \
     install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform; \
-    rm -rf /tmp/terraform /tmp/terraform.zip; \
-    STERN_VERSION="$(curl -fsSL https://api.github.com/repos/stern/stern/releases/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
-    curl -fsSL "https://github.com/stern/stern/releases/download/v${STERN_VERSION}/stern_${STERN_VERSION}_linux_${TOOL_ARCH}.tar.gz" -o /tmp/stern.tar.gz; \
+    rm -rf /tmp/terraform /tmp/terraform.zip /tmp/terraform_SHA256SUMS; \
+    if [ "${STERN_VERSION}" = "latest" ]; then \
+        STERN_RELEASE_JSON="$(curl -fsSL https://api.github.com/repos/stern/stern/releases/latest)"; \
+        STERN_VERSION="$(printf '%s' "${STERN_RELEASE_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
+    else \
+        STERN_RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/stern/stern/releases/tags/v${STERN_VERSION}")"; \
+    fi; \
+    STERN_ASSET="stern_${STERN_VERSION}_linux_${TOOL_ARCH}.tar.gz"; \
+    STERN_URL="$(printf '%s' "${STERN_RELEASE_JSON}" | github_asset_field "${STERN_ASSET}" browser_download_url)"; \
+    STERN_DIGEST="$(printf '%s' "${STERN_RELEASE_JSON}" | github_asset_field "${STERN_ASSET}" digest)"; \
+    test -n "${STERN_URL}" && test -n "${STERN_DIGEST}"; \
+    curl -fsSL "${STERN_URL}" -o /tmp/stern.tar.gz; \
+    printf "%s  %s\n" "${STERN_DIGEST#sha256:}" /tmp/stern.tar.gz | sha256sum -c -; \
     tar -xzf /tmp/stern.tar.gz -C /tmp stern; \
     install -m 0755 /tmp/stern /usr/local/bin/stern; \
     rm -f /tmp/stern.tar.gz /tmp/stern; \
-    GITLEAKS_VERSION="$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
-    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" -o /tmp/gitleaks.tar.gz; \
+    if [ "${GITLEAKS_VERSION}" = "latest" ]; then \
+        GITLEAKS_RELEASE_JSON="$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest)"; \
+        GITLEAKS_VERSION="$(printf '%s' "${GITLEAKS_RELEASE_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
+    else \
+        GITLEAKS_RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/gitleaks/gitleaks/releases/tags/v${GITLEAKS_VERSION}")"; \
+    fi; \
+    GITLEAKS_ASSET="gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz"; \
+    GITLEAKS_URL="$(printf '%s' "${GITLEAKS_RELEASE_JSON}" | github_asset_field "${GITLEAKS_ASSET}" browser_download_url)"; \
+    GITLEAKS_DIGEST="$(printf '%s' "${GITLEAKS_RELEASE_JSON}" | github_asset_field "${GITLEAKS_ASSET}" digest)"; \
+    test -n "${GITLEAKS_URL}" && test -n "${GITLEAKS_DIGEST}"; \
+    curl -fsSL "${GITLEAKS_URL}" -o /tmp/gitleaks.tar.gz; \
+    printf "%s  %s\n" "${GITLEAKS_DIGEST#sha256:}" /tmp/gitleaks.tar.gz | sha256sum -c -; \
     tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks; \
     install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks; \
     rm -f /tmp/gitleaks.tar.gz /tmp/gitleaks
