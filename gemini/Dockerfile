@@ -93,12 +93,13 @@ RUN set -eu; \
     if [ "${TERRAFORM_VERSION}" = "latest" ]; then \
         TERRAFORM_VERSION="$(curl -fsSL https://checkpoint-api.hashicorp.com/v1/check/terraform | python3 -c 'import json,sys; print(json.load(sys.stdin)["current_version"])')"; \
     fi; \
-    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip" -o /tmp/terraform.zip; \
+    TERRAFORM_ASSET="terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip"; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${TERRAFORM_ASSET}" -o "/tmp/${TERRAFORM_ASSET}"; \
     curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_SHA256SUMS" -o /tmp/terraform_SHA256SUMS; \
-    grep " terraform_${TERRAFORM_VERSION}_linux_${TOOL_ARCH}.zip\$" /tmp/terraform_SHA256SUMS | sed 's#  #  /tmp/#' | sha256sum -c -; \
-    unzip -q /tmp/terraform.zip -d /tmp/terraform; \
+    grep " ${TERRAFORM_ASSET}\$" /tmp/terraform_SHA256SUMS | sed 's#  #  /tmp/#' | sha256sum -c -; \
+    unzip -q "/tmp/${TERRAFORM_ASSET}" -d /tmp/terraform; \
     install -m 0755 /tmp/terraform/terraform /usr/local/bin/terraform; \
-    rm -rf /tmp/terraform /tmp/terraform.zip /tmp/terraform_SHA256SUMS; \
+    rm -rf /tmp/terraform "/tmp/${TERRAFORM_ASSET}" /tmp/terraform_SHA256SUMS; \
     if [ "${STERN_VERSION}" = "latest" ]; then \
         STERN_RELEASE_JSON="$(curl -fsSL https://api.github.com/repos/stern/stern/releases/latest)"; \
         STERN_VERSION="$(printf '%s' "${STERN_RELEASE_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')"; \
