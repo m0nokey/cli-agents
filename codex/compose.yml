@@ -8,7 +8,7 @@ services:
     tty: true
     init: true
     read_only: true
-    pids_limit: 100
+    pids_limit: 512
     mem_limit: 1g
     memswap_limit: 1g
     cpus: 1.0
