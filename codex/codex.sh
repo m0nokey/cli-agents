@@ -6,6 +6,7 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 CODEX_IMAGE_NAME="${CODEX_IMAGE_NAME:-local/codex-rust:latest}"
 CODEX_VERSION="${CODEX_VERSION:-latest}"
+CODEX_TOOL_PROFILE="${CODEX_TOOL_PROFILE:-full}"
 CODEX_GITHUB_REPO="${CODEX_GITHUB_REPO:-openai/codex}"
 CODEX_RUNNER_DIR="${CODEX_RUNNER_DIR:-$SCRIPT_DIR}"
 CODEX_WORKSPACE_DIR="${CODEX_WORKSPACE_DIR:-${CODEX_RUNNER_DIR}/workspace}"
@@ -24,6 +25,7 @@ export CODEX_IMAGE_NAME
 export CODEX_RUNNER_DIR
 export CODEX_WORKSPACE_DIR
 export CODEX_STATE_DIR="$PROJECT_CODEX_DIR"
+export CODEX_TOOL_PROFILE
 export CODEX_SSH_DIR
 export CODEX_SECRETS_DIR
 export CODEX_SSH_KNOWN_HOSTS
@@ -134,6 +136,7 @@ show_help() {
     printf '    %s- Moves ./config.toml to ./.codex/config.toml when available.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Writes a default ./.codex/config.toml when no config file exists.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- Hides docker compose build output unless --debug or --trace is enabled.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
+    printf '    %s- Uses the full tool image by default; set CODEX_TOOL_PROFILE=core for a smaller image.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '    %s- --init-ssh-key creates a per-agent deploy key in ./.ssh.%s\n' "$COLOR_TEXT" "$COLOR_RESET"
     printf '\n'
 
@@ -156,7 +159,38 @@ sandbox_mode = "workspace-write"
 
 [sandbox_workspace_write]
 network_access = true
+
+[features]
+code_mode_host = true
 EOF
+}
+
+ensure_code_mode_host_feature() {
+    local config_path="$1"
+    local temporary_path
+
+    if grep -qE '^[[:space:]]*\[features\][[:space:]]*$' "$config_path"; then
+        if grep -qE '^[[:space:]]*code_mode_host[[:space:]]*=' "$config_path"; then
+            sed -i -E 's/^[[:space:]]*code_mode_host[[:space:]]*=.*/code_mode_host = true/' \
+                "$config_path"
+        else
+            temporary_path="$(mktemp "${config_path}.XXXXXX")"
+            awk '
+                /^[[:space:]]*\[features\][[:space:]]*$/ && !inserted {
+                    print
+                    print "code_mode_host = true"
+                    inserted = 1
+                    next
+                }
+                { print }
+            ' "$config_path" >"$temporary_path"
+            chmod 600 "$temporary_path"
+            mv -f "$temporary_path" "$config_path"
+        fi
+    else
+        printf '\n[features]\ncode_mode_host = true\n' >>"$config_path"
+    fi
+    chmod 600 "$config_path"
 }
 
 docker_cmd() {
@@ -241,7 +275,7 @@ resolve_codex_asset_digest() {
     local version="$1" arch asset json digest
     arch="$(codex_release_arch 2>/dev/null || true)"
     [[ -n "$arch" ]] || return 0
-    asset="codex-${arch}.tar.gz"
+    asset="codex-package-${arch}.tar.gz"
     json="$(github_api_get "https://api.github.com/repos/${CODEX_GITHUB_REPO}/releases/tags/rust-v${version}" 2>/dev/null || true)"
     [[ -n "$json" ]] || return 0
 
@@ -332,8 +366,9 @@ local_image_label() {
 }
 
 codex_image_is_current() {
-    local local_version local_codex_digest local_base_digest local_dockerfile_sha
+    local local_version local_tool_profile local_codex_digest local_base_digest local_dockerfile_sha
     local_version="$(local_image_label 'org.opencontainers.image.version')"
+    local_tool_profile="$(local_image_label 'org.opencontainers.image.tool-profile')"
     local_codex_digest="$(local_image_label 'org.opencontainers.image.source-digest')"
     local_base_digest="$(local_image_label 'org.opencontainers.image.base.digest')"
     local_dockerfile_sha="$(local_image_label 'org.opencontainers.image.dockerfile-sha256')"
@@ -343,6 +378,8 @@ codex_image_is_current() {
     else
         [[ -n "$CODEX_RESOLVED_VERSION" && "$local_version" == "$CODEX_RESOLVED_VERSION" ]] || return 1
     fi
+
+    [[ "$local_tool_profile" == "$CODEX_TOOL_PROFILE" ]] || return 1
 
     if [[ -n "$CODEX_RESOLVED_BASE_IMAGE_DIGEST" ]]; then
         [[ "$local_base_digest" == "$CODEX_RESOLVED_BASE_IMAGE_DIGEST" ]] || return 1
@@ -380,6 +417,8 @@ ensure_project_layout() {
         log::info "Writing default Codex config: $PROJECT_CONFIG_PATH"
         default_config_contents > "$PROJECT_CONFIG_PATH"
     fi
+
+    ensure_code_mode_host_feature "$PROJECT_CONFIG_PATH"
 }
 
 ensure_ssh_known_hosts() {
@@ -498,6 +537,7 @@ build_image() {
         compose_cmd build \
             --build-arg "ALPINE_IMAGE=${CODEX_PINNED_BASE_IMAGE_REF}" \
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
+            --build-arg "CODEX_TOOL_PROFILE=${CODEX_TOOL_PROFILE}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
             --build-arg "CODEX_DOCKERFILE_SHA256=${CODEX_DOCKERFILE_SHA256}" \
@@ -506,6 +546,7 @@ build_image() {
         compose_cmd build \
             --build-arg "ALPINE_IMAGE=${CODEX_PINNED_BASE_IMAGE_REF}" \
             --build-arg "CODEX_VERSION=${CODEX_RESOLVED_VERSION}" \
+            --build-arg "CODEX_TOOL_PROFILE=${CODEX_TOOL_PROFILE}" \
             --build-arg "CODEX_ASSET_DIGEST=${CODEX_RESOLVED_ASSET_DIGEST}" \
             --build-arg "CODEX_BASE_IMAGE_DIGEST=${CODEX_RESOLVED_BASE_IMAGE_DIGEST}" \
             --build-arg "CODEX_DOCKERFILE_SHA256=${CODEX_DOCKERFILE_SHA256}" \

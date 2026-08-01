@@ -96,6 +96,16 @@ CODEX_FORCE_BUILD=1 ./codex.sh --help
 CODEX_VERSION=0.70.0 ./codex.sh --help
 ```
 
+The default image uses the `full` tool profile. For a smaller image with the
+core agent, shell, Python, Ansible Core, Terraform, and repository tools:
+
+```bash
+CODEX_TOOL_PROFILE=core ./codex.sh --help
+```
+
+Changing the tool profile triggers an image rebuild. The full profile remains
+the default for compatibility with the complete local toolchain.
+
 ## Isolation
 
 - Alpine-based image
