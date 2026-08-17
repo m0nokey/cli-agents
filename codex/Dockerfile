@@ -23,6 +23,7 @@ LABEL org.opencontainers.image.title="codex-rust" \
 ENV HOME=/home/codex \
     XDG_CONFIG_HOME=/home/codex/.config \
     XDG_CACHE_HOME=/home/codex/.cache \
+    CARGO_HOME=/home/codex/.cargo \
     ANSIBLE_HOME=/home/codex/.cache/ansible \
     ANSIBLE_LOCAL_TEMP=/tmp/ansible-local \
     ANSIBLE_REMOTE_TEMP=/tmp/ansible-remote \
@@ -35,6 +36,7 @@ RUN common_packages="\
         bash \
         bind-tools \
         bubblewrap \
+        build-base \
         ca-certificates \
         coreutils \
         curl \
@@ -48,8 +50,13 @@ RUN common_packages="\
         npm \
         openssh-client \
         openssl \
+        pkgconf \
         py3-pip \
         python3 \
+        cargo \
+        rust \
+        rust-clippy \
+        rustfmt \
         ripgrep \
         rsync \
         sops \
@@ -91,6 +98,7 @@ RUN addgroup -g 1000 -S codex \
     && install -d -m 0755 -o codex -g codex \
         /workspace \
         /home/codex/.codex \
+        /home/codex/.cargo \
         /home/codex/.config \
         /home/codex/.cache \
     && install -d -m 1777 /tmp/ansible-local /tmp/ansible-remote \

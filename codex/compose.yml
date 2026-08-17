@@ -29,6 +29,9 @@ services:
       HOME: /home/codex
       TMPDIR: /tmp
       XDG_RUNTIME_DIR: /tmp/codex-runtime
+      CARGO_HOME: /home/codex/.cargo
+      CARGO_TARGET_DIR: /workspace/target
+      RUST_BACKTRACE: "1"
       npm_config_cache: /tmp/npm-cache
       TERM: xterm-256color
       COLORTERM: truecolor
@@ -40,6 +43,10 @@ services:
     volumes:
       - ${CODEX_WORKSPACE_DIR}:/workspace
       - ${CODEX_STATE_DIR}:/home/codex/.codex
+      - codex-cargo-cache:/home/codex/.cargo
       - ${CODEX_SSH_DIR}:/home/codex/.ssh:ro
       - ${CODEX_SECRETS_DIR}:/run/agent-secrets:ro
     working_dir: /workspace
+
+volumes:
+  codex-cargo-cache:

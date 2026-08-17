@@ -74,6 +74,7 @@ Agent images include the practical local toolchain by default:
 
 - git, bash, curl, SSH, rsync
 - Python, pip, Node.js, npm
+- Rust, Cargo, rustfmt, and Clippy in the Codex image
 - Terraform from the latest HashiCorp release at build time
 - Ansible from Alpine packages
 - Kubernetes clients: kubectl, Helm, Kustomize, kubectx/kubens, Stern
@@ -84,6 +85,11 @@ Agent images include the practical local toolchain by default:
 - jq and yq
 
 Cloud provider CLIs are intentionally not included. For Terraform and Ansible, keep projects in `workspace/` and credentials outside it in `.secrets/`.
+
+Rust projects in `codex/workspace/` can be tested and run inside the Codex
+container with `cargo test` and `cargo run`. Cargo's dependency cache is kept
+in the Docker volume `codex-cargo-cache`; project build artifacts remain in the
+mounted workspace under `target/`.
 
 ## Requirements
 

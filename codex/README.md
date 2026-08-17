@@ -41,7 +41,24 @@ OPENAI_API_KEY=... ./codex.sh --api
 
 ## Included Tools
 
-The image includes git, bash, Python/pip, Node/npm, Terraform, Ansible, Kubernetes clients, jq/yq, SSH, rsync, shfmt, ShellCheck, yamllint, ansible-lint, pre-commit, and gitleaks.
+The image includes git, bash, Python/pip, Node/npm, Rust/Cargo with rustfmt and
+Clippy, Terraform, Ansible, Kubernetes clients, jq/yq, SSH, rsync, shfmt,
+ShellCheck, yamllint, ansible-lint, pre-commit, and gitleaks.
+
+Rust projects can be tested and run directly from the agent workspace:
+
+```bash
+cargo test
+cargo run
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+```
+
+The Rust toolchain is installed from Alpine packages. Cargo's registry and git
+dependencies use a dedicated Docker volume (`codex-cargo-cache`), while build
+artifacts are stored in the project's `/workspace/target` directory. The
+container's network setting still follows Codex's normal approval/sandbox
+policy.
 
 Keep projects inside:
 
